@@ -1,0 +1,42 @@
+name: Reportar un problema
+description: Informar un fallo sin incluir datos privados del Campus
+title: "[Problema]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "No incluyas contraseñas, cookies, archivos de sesión, capturas del Campus, consignas ni calificaciones."
+  - type: input
+    id: version
+    attributes:
+      label: Versión de UTN FRM MCP
+      placeholder: 2.0.0
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Versión de Node.js
+      placeholder: 22.13.0
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducir
+      description: Usá ejemplos ficticios y no pegues contenido de materias.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Resultado observado
+      description: Quitá cualquier dato personal antes de compartirlo.
+    validations:
+      required: true

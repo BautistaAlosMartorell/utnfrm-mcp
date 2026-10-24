@@ -1,0 +1,1 @@
+Fixture de archivo para pruebas locales; no contiene datos personales.

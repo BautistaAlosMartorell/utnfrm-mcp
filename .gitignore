@@ -1,0 +1,51 @@
+node_modules/
+dist/
+.dist-backups/
+.build-staging-*/
+.package-check-*/
+.package-*/
+.node22-validation/
+.ocr-models/
+.session-dpapi-integration-*/
+
+# Sesión de Moodle — NUNCA commitear
+.session/
+.session/storageState.json
+storageState.json
+storageState.*
+*.dpapi
+
+# Playwright
+test-results/
+playwright-report/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/settings.json
+.idea/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Env local
+.env
+.env.*
+!.env.example
+.npmrc
+
+# Credenciales locales
+.auth/
+auth.json
+credentials.json
+*.session

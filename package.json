@@ -1,0 +1,73 @@
+{
+  "name": "utn-mcp-mendoza",
+  "version": "2.0.0",
+  "description": "Servidor Model Context Protocol (MCP) para el Campus Virtual de UTN Mendoza (FRM). Sin dependencias institucionales.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "utn-mcp-mendoza": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "INICIAR-LOGIN.cmd",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-safe.cjs",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "login": "node dist/cli.js login",
+    "approve:assignment": "node dist/cli.js approve-assignment",
+    "logout": "node dist/cli.js logout",
+    "status": "node dist/cli.js status",
+    "whoami": "node dist/cli.js whoami",
+    "setup": "node dist/cli.js setup",
+    "setup:codex": "node dist/cli.js setup-codex",
+    "install:browser": "node dist/cli.js install-browser",
+    "test:tools": "node dist/cli.js test",
+    "probe:campus": "tsx scripts/campus-readonly-probe.ts",
+    "package:check": "node scripts/verify-package.cjs",
+    "test": "vitest run --pool=forks --maxWorkers=1 --no-file-parallelism",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "verify": "npm run lint && npm run typecheck && npm test",
+    "prepublishOnly": "npm run verify && npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "utn",
+    "frm",
+    "mendoza",
+    "moodle",
+    "campus-virtual",
+    "ai",
+    "llm"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.0",
+    "cheerio": "^1.0.0",
+    "officeparser": "^8.2.0",
+    "playwright": "^1.50.0",
+    "turndown": "^7.2.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.13.4",
+    "@types/turndown": "^5.0.5",
+    "eslint": "^10.13.0",
+    "fflate": "^0.8.3",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^4.1.12"
+  }
+}
