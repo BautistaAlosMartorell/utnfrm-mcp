@@ -10,17 +10,16 @@ Beta de solo lectura. Las funciones de publicación, votos, eventos y entregas p
 
 El servidor usa Node.js 22.13 o posterior y MCP por STDIO. La rama actual incorpora soporte para Windows, Linux y macOS. CI ejecuta pruebas en los tres sistemas: instalación limpia del paquete, intercambio MCP, generación del comando de registro de Codex, almacenamiento seguro nativo y arranque de Chromium.
 
-La Release pública `v2.0.0` fue validada en Windows. El soporte Linux/macOS de esta rama aún no forma parte de una Release; espera una versión publicada con estos cambios antes de instalarlo en esos sistemas.
+La Release pública `v2.0.0` no se modifica. Este paquete privado `v2.1.0-beta.1` sirve para probar Windows, Linux y macOS; no está publicado en GitHub Releases ni en npm.
 
 ## Instalar el paquete
 
-Descarga el `.tgz` adjunto a la Release indicada para tu sistema y abre una terminal en la carpeta de descarga. Necesitas Node.js 22.13 o posterior y Codex.
+Recibe el archivo `utn-mcp-mendoza-2.1.0-beta.1.tgz` de quien te invitó a probarlo y abre una terminal en la carpeta de descarga. Necesitas Node.js 22.13 o posterior y Codex. Si todavía no tienes Node.js, instálalo desde [nodejs.org](https://nodejs.org/).
 
 ### Windows (PowerShell)
 
 ```powershell
-$package = Get-ChildItem .\utn-mcp-mendoza-*.tgz | Select-Object -First 1
-npm install --global $package.FullName
+npm install --global .\utn-mcp-mendoza-2.1.0-beta.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
@@ -31,7 +30,7 @@ La sesión local se protege con Secret Service (GNOME Keyring o KWallet compatib
 ```bash
 sudo apt-get update
 sudo apt-get install -y libsecret-tools gnome-keyring
-npm install --global ./utn-mcp-mendoza-*.tgz
+npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
@@ -42,7 +41,7 @@ En otras distribuciones, instala el equivalente a `libsecret-tools` y un proveed
 La sesión local se protege con el Llavero de inicio de sesión de macOS:
 
 ```bash
-npm install --global ./utn-mcp-mendoza-*.tgz
+npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
@@ -77,6 +76,10 @@ La CI prueba los tres sistemas operativos sin usar una cuenta Moodle: instalaci�
 - **El almacén seguro no está disponible:** desbloquea el Llavero de macOS o inicia una sesión de escritorio Linux con Secret Service activo; vuelve a ejecutar `login`.
 - **Codex no muestra las herramientas:** repite `setup-codex`, ejecuta el comando que imprime, confirma `codex mcp list` y reinicia Codex.
 - **No aparecen materias o actividades:** una respuesta vacía puede indicar que no hay contenido visible. Si el servidor informa un error de acceso, revisa la sesión con `status` y vuelve a iniciar sesión si venció.
+
+## Prueba beta y reporte
+
+Prueba inicio de sesión, `status`, conexión con Codex y consultas de materias, tareas, consignas, documentos, calificaciones y calendario. No intentes publicar, votar ni entregar. Si algo falla, envía a quien te compartió el paquete tu sistema operativo y versión, versión de Node (`node --version`), paso realizado y mensaje de error. No envíes contraseñas, archivos de sesión, cookies, capturas del Campus ni datos académicos privados.
 
 ## Desinstalar
 
