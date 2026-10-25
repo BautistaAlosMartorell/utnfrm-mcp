@@ -77,7 +77,7 @@ try {
     throw new Error('STDIO MCP read_file schema is missing URL, page, page_size, offset, or OCR options.');
   }
 
-  const codexSetup = spawnSync(process.execPath, [path.join(stagedPackage, 'dist', 'cli.js'), 'setup-codex'], {
+  const codexSetup = spawnSync(process.execPath, [path.join(stagedPackage, 'dist', 'cli.js'), 'setup-codex', '--print'], {
     cwd: stagedPackage,
     encoding: 'utf8',
     timeout: 30000
@@ -159,7 +159,7 @@ try {
   if (browserSmoke.error) throw browserSmoke.error;
   if (browserSmoke.status !== 0) throw new Error(browserSmoke.stderr || 'Packaged Playwright Chromium smoke check failed.');
 
-  const installedCodexSetup = spawnSync(process.execPath, [path.join(installedPackage, 'dist', 'cli.js'), 'setup-codex'], {
+  const installedCodexSetup = spawnSync(process.execPath, [path.join(installedPackage, 'dist', 'cli.js'), 'setup-codex', '--print'], {
     cwd: installPrefix,
     encoding: 'utf8',
     timeout: 10000
@@ -168,7 +168,8 @@ try {
   const installedExecutableForCodex = fs.realpathSync(installedEntrypoint).replace(/\\/g, '/');
   if (installedCodexSetup.status !== 0
     || !installedCodexSetup.stdout.includes('codex mcp add utn-mendoza --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node')
-    || !installedCodexSetup.stdout.includes('node "' + installedExecutableForCodex + '"')) {
+    || !(installedCodexSetup.stdout.includes('node ' + installedExecutableForCodex)
+      || installedCodexSetup.stdout.includes('node "' + installedExecutableForCodex + '"'))) {
     throw new Error('Installed package did not print the expected Codex registration command (exit '
       + installedCodexSetup.status + '). stdout: ' + installedCodexSetup.stdout + ' stderr: ' + installedCodexSetup.stderr);
   }

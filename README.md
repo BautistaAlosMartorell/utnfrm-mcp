@@ -74,7 +74,7 @@ En el primer guardado, acepta el acceso al Llavero si macOS lo solicita.
 1. Ejecuta `utn-mcp-mendoza login`. Se abre Chromium visible en el Campus oficial.
 2. Inicia sesión directamente en esa ventana. Cuando veas tu página principal, vuelve a la terminal y pulsa Enter.
 3. Confirma que la sesión funciona con `utn-mcp-mendoza status`.
-4. Registra el MCP en tu cliente. Claude Code y OpenCode lo hacen solos; Codex imprime el comando para que lo copies y lo ejecutes en la misma terminal. El registro fija las entregas en `false`.
+4. Registra el MCP en tu cliente. Los tres comandos ejecutan el registro por ti. El registro fija las entregas en `false`.
 
    | Cliente | Comando | Comprueba |
    | --- | --- | --- |
@@ -82,7 +82,7 @@ En el primer guardado, acepta el acceso al Llavero si macOS lo solicita.
    | Claude Code | `utn-mcp-mendoza setup-claude` | `claude mcp list` |
    | OpenCode | `utn-mcp-mendoza setup-opencode` | `opencode mcp list` |
 
-   Claude Code lo registra con alcance `user` (todos tus proyectos) y OpenCode en su configuración global. Con `--print` (por ejemplo `setup-claude --print`) solo se muestra el comando, sin ejecutarlo. Si el servidor ya estaba registrado, el cliente avisa: bórralo antes con los comandos de la sección Desinstalar.
+   Claude Code lo registra con alcance `user` (todos tus proyectos) y OpenCode en su configuración global. Con `--print` (por ejemplo `setup-codex --print`) solo se muestra el comando, sin ejecutarlo. Si el servidor ya estaba registrado, el cliente avisa: bórralo antes con los comandos de la sección Desinstalar.
 5. Reinicia el cliente.
 6. En el cliente, prueba: **Lista mis materias y las tareas próximas; distingue una lista vacía de un error de acceso.**
 

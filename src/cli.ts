@@ -129,11 +129,11 @@ async function main(): Promise<void> {
       return;
     }
     case 'setup-codex': {
-      const executable = ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js';
-      console.log('Agregá UTN MCP Mendoza a Codex con este comando:');
-      console.log('codex mcp add utn-mendoza --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node "' + executable + '"');
-      console.log('Después verificá con: codex mcp list');
-      console.log('Reiniciá Codex para descubrir las herramientas.');
+      registerInClient('Codex', 'codex', [
+        'mcp', 'add', 'utn-mendoza',
+        '--env', 'UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false',
+        '--', 'node', ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js'
+      ]);
       return;
     }
     case 'setup-claude': {
@@ -192,7 +192,7 @@ async function main(): Promise<void> {
       console.log('  utn-mcp-mendoza status      Comprueba la sesión sin eliminarla');
       console.log('  utn-mcp-mendoza whoami      Muestra tu perfil');
       console.log('  utn-mcp-mendoza setup       Muestra bloques MCP');
-      console.log('  utn-mcp-mendoza setup-codex Imprime el comando de instalación para Codex');
+      console.log('  utn-mcp-mendoza setup-codex Registra el MCP en Codex (--print solo imprime el comando)');
       console.log('  utn-mcp-mendoza setup-claude Registra el MCP en Claude Code (--print solo imprime el comando)');
       console.log('  utn-mcp-mendoza setup-opencode Registra el MCP en OpenCode (--print solo imprime el comando)');
       console.log('  utn-mcp-mendoza install-browser Instala Chromium compatible con esta versión');
