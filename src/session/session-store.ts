@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import { secrets } from 'just-secrets';
 import type { BrowserContext } from 'playwright';
 import { ENCRYPTED_STORAGE_STATE_PATH, SECURE_STORAGE_STATE_PATH, STORAGE_STATE_PATH, SESSION_DIR } from '../config.js';
@@ -13,7 +13,7 @@ type SessionEnvelope = { version: 1; iv: string; tag: string; data: string };
 const MAX_STORAGE_STATE_BYTES = 4 * 1024 * 1024;
 const MAX_ENCRYPTED_STATE_BYTES = 7 * 1024 * 1024;
 const KEYRING_SERVICE = 'ar.edu.utn.frm.mcp';
-const KEYRING_NAME = 'campus-session-encryption-key';
+const KEYRING_NAME = `campus-session-encryption-key-${createHash('sha256').update(path.resolve(SESSION_DIR)).digest('hex').slice(0, 24)}`;
 
 async function getSessionKey(create: boolean): Promise<Buffer> {
   try {
@@ -177,8 +177,11 @@ export class SessionStore {
 
   static async clear(): Promise<void> {
     try {
-      const hasSecureState = process.platform !== 'win32'
-        && inspectSessionFile(SECURE_STORAGE_STATE_PATH, MAX_ENCRYPTED_STATE_BYTES).exists;
+      let hasSecureState = false;
+      if (process.platform !== 'win32') {
+        try { fs.lstatSync(SECURE_STORAGE_STATE_PATH); hasSecureState = true; }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+      }
       if (hasSecureState) await secrets.delete({ service: KEYRING_SERVICE, name: KEYRING_NAME });
       for (const filePath of [STORAGE_STATE_PATH, ENCRYPTED_STORAGE_STATE_PATH, SECURE_STORAGE_STATE_PATH]) {
         try { fs.lstatSync(filePath); fs.unlinkSync(filePath); }

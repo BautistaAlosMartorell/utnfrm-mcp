@@ -1,7 +1,7 @@
 import path from 'node:path';
 import os from 'node:os';
-import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { resolveSessionDir } from './session/paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,17 +12,20 @@ export const ROOT_DIR = path.resolve(__dirname, '..');
 // Directorio y ruta para la sesión local
 const projectSessionDir = path.join(ROOT_DIR, '.session');
 const xdgStateHome = process.env.XDG_STATE_HOME;
+const legacyMacUserStateDir = path.join(xdgStateHome && path.isAbsolute(xdgStateHome) ? xdgStateHome : path.join(os.homedir(), '.local', 'state'), 'utn-mcp-mendoza');
 const userStateDir = process.platform === 'win32'
   ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'UTN MCP Mendoza')
   : process.platform === 'darwin'
     ? path.join(os.homedir(), 'Library', 'Application Support', 'UTN FRM MCP')
-    : path.join(xdgStateHome && path.isAbsolute(xdgStateHome) ? xdgStateHome : path.join(os.homedir(), '.local', 'state'), 'utn-mcp-mendoza');
+    : legacyMacUserStateDir;
 
-export const SESSION_DIR = process.env.UTN_MCP_SESSION_DIR
-  ? path.resolve(process.env.UTN_MCP_SESSION_DIR)
-  : process.platform === 'win32' && fs.existsSync(path.join(projectSessionDir, 'storageState.json'))
-    ? projectSessionDir
-    : userStateDir;
+export const SESSION_DIR = resolveSessionDir({
+  platform: process.platform,
+  override: process.env.UTN_MCP_SESSION_DIR,
+  projectSessionDir,
+  userStateDir,
+  legacyMacUserStateDir
+});
 export const STORAGE_STATE_PATH = path.join(SESSION_DIR, 'storageState.json');
 export const ENCRYPTED_STORAGE_STATE_PATH = path.join(SESSION_DIR, 'storageState.dpapi');
 export const SECURE_STORAGE_STATE_PATH = path.join(SESSION_DIR, 'storageState.enc');

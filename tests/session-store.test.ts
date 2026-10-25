@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const paths = vi.hoisted(() => ({ dir: '', plain: '', encrypted: '', secure: '' }));
 const dpapiFixture = vi.hoisted(() => ({ json: '' }));
-const keyring = vi.hoisted(() => ({ value: null as string | null, unavailable: false }));
+const keyring = vi.hoisted(() => ({ values: new Map<string, string>(), unavailable: false }));
 const hostPlatform = process.platform;
 
 vi.mock('../src/config.js', () => ({
@@ -29,9 +29,9 @@ vi.mock('../src/session/windows-dpapi.js', () => ({
 }));
 vi.mock('just-secrets', () => ({
   secrets: {
-    get: async () => { if (keyring.unavailable) throw new Error('store unavailable'); return keyring.value; },
-    set: async ({ value }: { value: string }) => { if (keyring.unavailable) throw new Error('store unavailable'); keyring.value = value; },
-    delete: async () => { if (keyring.unavailable) throw new Error('store unavailable'); const hadValue = keyring.value !== null; keyring.value = null; return hadValue; }
+    get: async ({ name }: { name: string }) => { if (keyring.unavailable) throw new Error('store unavailable'); return keyring.values.get(name) ?? null; },
+    set: async ({ name, value }: { name: string; value: string }) => { if (keyring.unavailable) throw new Error('store unavailable'); keyring.values.set(name, value); },
+    delete: async ({ name }: { name: string }) => { if (keyring.unavailable) throw new Error('store unavailable'); return keyring.values.delete(name); }
   }
 }));
 
@@ -46,7 +46,7 @@ describe('SessionStore platform persistence policy', () => {
     paths.encrypted = path.join(paths.dir, 'storageState.dpapi');
     paths.secure = path.join(paths.dir, 'storageState.enc');
     dpapiFixture.json = '';
-    keyring.value = null;
+    keyring.values.clear();
     keyring.unavailable = false;
     originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
     Object.defineProperty(process, 'platform', { ...originalPlatform, value: 'win32' });
@@ -107,7 +107,7 @@ describe('SessionStore platform persistence policy', () => {
     expect(await SessionStore.getPlaywrightStorageState()).toEqual(state);
     await SessionStore.clear();
     expect(SessionStore.exists()).toBe(false);
-    expect(keyring.value).toBeNull();
+    expect(keyring.values.size).toBe(0);
   });
 
   it('fails closed when the OS keyring is unavailable', async () => {
@@ -130,5 +130,46 @@ describe('SessionStore platform persistence policy', () => {
     expect(() => SessionStore.exists()).toThrow(/sesion antigua sin cifrar/i);
     await expect(SessionStore.save({ cookies: [], origins: [] })).rejects.toThrow(/logout/i);
     expect(fs.readFileSync(paths.plain, 'utf8')).toBe('{"cookies":[],"origins":[]}');
+  });
+
+  it('scopes keyring keys to each session directory', async () => {
+    Object.defineProperty(process, 'platform', { ...originalPlatform, value: 'linux' });
+    const firstState = { cookies: [{ name: 'first', value: 'first-cookie' }], origins: [] };
+    const secondState = { cookies: [{ name: 'second', value: 'second-cookie' }], origins: [] };
+    const firstDir = paths.dir;
+    const firstSecure = paths.secure;
+    const firstModule = await import('../src/session/session-store.js');
+    await firstModule.SessionStore.save(firstState);
+
+    paths.dir = path.join(tempDir, 'other-session');
+    paths.secure = path.join(paths.dir, 'storageState.enc');
+    vi.resetModules();
+    const secondModule = await import('../src/session/session-store.js');
+    await secondModule.SessionStore.save(secondState);
+    expect(keyring.values.size).toBe(2);
+
+    paths.dir = firstDir;
+    paths.secure = firstSecure;
+    vi.resetModules();
+    const firstClearModule = await import('../src/session/session-store.js');
+    await firstClearModule.SessionStore.clear();
+
+    paths.dir = path.join(tempDir, 'other-session');
+    paths.secure = path.join(paths.dir, 'storageState.enc');
+    vi.resetModules();
+    const secondReadModule = await import('../src/session/session-store.js');
+    expect(await secondReadModule.SessionStore.getPlaywrightStorageState()).toEqual(secondState);
+    expect(keyring.values.size).toBe(1);
+  });
+
+  it('allows logout to remove an empty invalid encrypted file', async () => {
+    Object.defineProperty(process, 'platform', { ...originalPlatform, value: 'linux' });
+    const { SessionStore } = await import('../src/session/session-store.js');
+    await SessionStore.save({ cookies: [], origins: [] });
+    fs.writeFileSync(paths.secure, '');
+
+    await expect(SessionStore.clear()).resolves.toBeUndefined();
+    expect(fs.existsSync(paths.secure)).toBe(false);
+    expect(keyring.values.size).toBe(0);
   });
 });
