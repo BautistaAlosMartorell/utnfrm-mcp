@@ -7,6 +7,12 @@ const tempRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'UTN MCP 
 const stagedPackage = path.join(tempRoot, 'package');
 const stagedDist = path.join(tempRoot, 'dist');
 
+// npm >= 12 returns `npm pack --json` as an object keyed by package name instead of an array.
+function firstPackEntry(json) {
+  const parsed = JSON.parse(json);
+  return Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0];
+}
+
 function run(command, args, cwd) {
   const result = spawnSync(command, args, { cwd, encoding: 'utf8', stdio: 'inherit' });
   if (result.error) throw result.error;
@@ -108,8 +114,7 @@ try {
   });
   if (packed.error) throw packed.error;
   if (packed.status !== 0) throw new Error(packed.stderr || 'npm pack --dry-run failed.');
-  const output = JSON.parse(packed.stdout);
-  const files = output[0]?.files || [];
+  const files = firstPackEntry(packed.stdout)?.files || [];
   const fileNames = files.map(file => file.path);
   for (const required of ['dist/index.js', 'dist/cli.js', 'README.md', 'LICENSE']) {
     if (!fileNames.includes(required)) throw new Error('Package is missing ' + required);
@@ -124,7 +129,7 @@ try {
   });
   if (packedTarball.error) throw packedTarball.error;
   if (packedTarball.status !== 0) throw new Error(packedTarball.stderr || 'npm pack failed.');
-  const tarballName = JSON.parse(packedTarball.stdout)[0]?.filename;
+  const tarballName = firstPackEntry(packedTarball.stdout)?.filename;
   if (!tarballName) throw new Error('npm pack did not return a tarball name.');
 
   const installPrefix = path.join(tempRoot, 'global-install');
