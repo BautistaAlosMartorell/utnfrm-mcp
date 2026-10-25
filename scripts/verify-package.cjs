@@ -91,7 +91,7 @@ try {
     ['setup-claude', 'claude mcp add utn-mendoza --scope user --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node'],
     ['setup-opencode', 'opencode mcp add --global --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false utn-mendoza -- node']
   ]) {
-    const setup = spawnSync(process.execPath, [path.join(stagedPackage, 'dist', 'cli.js'), command], {
+    const setup = spawnSync(process.execPath, [path.join(stagedPackage, 'dist', 'cli.js'), command, '--print'], {
       cwd: stagedPackage,
       encoding: 'utf8',
       timeout: 30000

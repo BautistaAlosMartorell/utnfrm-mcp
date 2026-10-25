@@ -12,6 +12,31 @@ import { SessionStore } from './session/session-store.js';
 import { handleWhoami } from './tools/whoami.js';
 import { approveAssignmentInConsole } from './cli/assignment-approval.js';
 
+function registerInClient(label: string, binary: string, args: string[]): void {
+  const quoted = args.map(arg => /[\s"]/.test(arg) ? '"' + arg + '"' : arg);
+  const printed = binary + ' ' + quoted.join(' ');
+  if (process.argv.includes('--print')) {
+    console.log(printed);
+    return;
+  }
+  console.log('Registrando UTN MCP Mendoza en ' + label + ': ' + printed);
+  // En Windows los clientes son .cmd y spawn exige shell; los argumentos ya van entrecomillados.
+  const windows = process.platform === 'win32';
+  const result = windows
+    ? spawnSync(binary + ' ' + quoted.join(' '), { stdio: 'inherit', shell: true })
+    : spawnSync(binary, args, { stdio: 'inherit' });
+  if (result.error) {
+    console.error('No se pudo ejecutar "' + binary + '". Instalalo o ejecutá a mano: ' + printed);
+    process.exitCode = 1;
+    return;
+  }
+  if (result.status !== 0) {
+    process.exitCode = result.status ?? 1;
+    return;
+  }
+  console.log('Listo. Verificá con: ' + binary + ' mcp list y reiniciá ' + label + '.');
+}
+
 async function main(): Promise<void> {
   const command = process.argv[2] || 'start';
 
@@ -112,19 +137,19 @@ async function main(): Promise<void> {
       return;
     }
     case 'setup-claude': {
-      const executable = ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js';
-      console.log('Agregá UTN MCP Mendoza a Claude Code con este comando:');
-      console.log('claude mcp add utn-mendoza --scope user --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node "' + executable + '"');
-      console.log('Después verificá con: claude mcp list');
-      console.log('Reiniciá Claude Code para descubrir las herramientas.');
+      registerInClient('Claude Code', 'claude', [
+        'mcp', 'add', 'utn-mendoza', '--scope', 'user',
+        '--env', 'UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false',
+        '--', 'node', ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js'
+      ]);
       return;
     }
     case 'setup-opencode': {
-      const executable = ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js';
-      console.log('Agregá UTN MCP Mendoza a OpenCode con este comando:');
-      console.log('opencode mcp add --global --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false utn-mendoza -- node "' + executable + '"');
-      console.log('Después verificá con: opencode mcp list');
-      console.log('Reiniciá OpenCode para descubrir las herramientas.');
+      registerInClient('OpenCode', 'opencode', [
+        'mcp', 'add', '--global',
+        '--env', 'UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false',
+        'utn-mendoza', '--', 'node', ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js'
+      ]);
       return;
     }
     case 'install-browser': {
@@ -168,8 +193,8 @@ async function main(): Promise<void> {
       console.log('  utn-mcp-mendoza whoami      Muestra tu perfil');
       console.log('  utn-mcp-mendoza setup       Muestra bloques MCP');
       console.log('  utn-mcp-mendoza setup-codex Imprime el comando de instalación para Codex');
-      console.log('  utn-mcp-mendoza setup-claude Imprime el comando de instalación para Claude Code');
-      console.log('  utn-mcp-mendoza setup-opencode Imprime el comando de instalación para OpenCode');
+      console.log('  utn-mcp-mendoza setup-claude Registra el MCP en Claude Code (--print solo imprime el comando)');
+      console.log('  utn-mcp-mendoza setup-opencode Registra el MCP en OpenCode (--print solo imprime el comando)');
       console.log('  utn-mcp-mendoza install-browser Instala Chromium compatible con esta versión');
       console.log('  utn-mcp-mendoza test        Comprueba lecturas sin guardar contenido ni ejecutar escrituras');
     }

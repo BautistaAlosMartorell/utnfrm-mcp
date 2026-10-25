@@ -74,15 +74,15 @@ En el primer guardado, acepta el acceso al Llavero si macOS lo solicita.
 1. Ejecuta `utn-mcp-mendoza login`. Se abre Chromium visible en el Campus oficial.
 2. Inicia sesión directamente en esa ventana. Cuando veas tu página principal, vuelve a la terminal y pulsa Enter.
 3. Confirma que la sesión funciona con `utn-mcp-mendoza status`.
-4. Registra el MCP en tu cliente: ejecuta el comando de la tabla, copia el comando que muestra y ejecútalo en la misma terminal. El registro fija las entregas en `false`.
+4. Registra el MCP en tu cliente. Claude Code y OpenCode lo hacen solos; Codex imprime el comando para que lo copies y lo ejecutes en la misma terminal. El registro fija las entregas en `false`.
 
-   | Cliente | Genera el comando | Comprueba |
+   | Cliente | Comando | Comprueba |
    | --- | --- | --- |
    | Codex | `utn-mcp-mendoza setup-codex` | `codex mcp list` |
    | Claude Code | `utn-mcp-mendoza setup-claude` | `claude mcp list` |
    | OpenCode | `utn-mcp-mendoza setup-opencode` | `opencode mcp list` |
 
-   Claude Code lo registra con alcance `user` (todos tus proyectos) y OpenCode en su configuración global.
+   Claude Code lo registra con alcance `user` (todos tus proyectos) y OpenCode en su configuración global. Con `--print` (por ejemplo `setup-claude --print`) solo se muestra el comando, sin ejecutarlo. Si el servidor ya estaba registrado, el cliente avisa: bórralo antes con los comandos de la sección Desinstalar.
 5. Reinicia el cliente.
 6. En el cliente, prueba: **Lista mis materias y las tareas próximas; distingue una lista vacía de un error de acceso.**
 
@@ -104,7 +104,7 @@ La CI prueba los tres sistemas operativos sin usar cuentas Moodle: instalación 
 
 - **No abre Chromium:** ejecuta otra vez `utn-mcp-mendoza install-browser`. En Linux puede pedir permisos para instalar bibliotecas del sistema.
 - **El almacén seguro no está disponible:** desbloquea el Llavero de macOS o inicia una sesión de escritorio Linux con Secret Service activo; vuelve a ejecutar `login`.
-- **El cliente no muestra las herramientas:** repite `setup-codex`, `setup-claude` o `setup-opencode`, ejecuta el comando que imprime, confirma con `codex|claude|opencode mcp list` y reinicia el cliente.
+- **El cliente no muestra las herramientas:** repite `setup-codex`, `setup-claude` o `setup-opencode`, confirma con `codex|claude|opencode mcp list` y reinicia el cliente.
 - **No aparecen materias o actividades:** una respuesta vacía puede indicar que no hay contenido visible. Si el servidor informa un error de acceso, revisa la sesión con `status` y vuelve a iniciar sesión si venció.
 
 ## Qué probar y cómo reportar un problema
