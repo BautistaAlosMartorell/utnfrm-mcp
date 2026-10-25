@@ -88,7 +88,7 @@ En tu cliente puedes escribir:
 También puedes pedir consultar consignas, documentos, calificaciones, foros y calendario. La cuenta debe tener acceso a esos datos.
 
 QUÉ ESTÁ VALIDADO
-La instalación, el arranque MCP, el almacenamiento seguro de una sesión de prueba y Chromium se verifican automáticamente en Windows, Linux y macOS. Windows tiene validación previa. En Linux y macOS todavía falta probar el inicio de sesión y las consultas con cuentas reales; por eso esta beta necesita estudiantes que la prueben.
+La instalación, el arranque MCP, el almacenamiento seguro de una sesión de prueba y Chromium se verifican automáticamente en Windows, Linux y macOS. Windows tiene validación previa. Linux se probó a mano con una cuenta real (inicio de sesión y consultas desde Claude Code y OpenCode). En macOS todavía falta probar el inicio de sesión y las consultas con cuentas reales; por eso esta beta necesita estudiantes que la prueben. El registro con setup-codex y los comandos setup-claude y setup-opencode en Windows y macOS tampoco se probaron a mano todavía.
 
 NO intentes entregar tareas ni escribir en el Campus: todas las escrituras están deshabilitadas.
 

@@ -146,8 +146,8 @@ También puedes pedir consultar consignas, documentos, calificaciones, foros y c
 ## Qué está probado y qué falta
 
 - La instalación del paquete, el arranque MCP, la lista de herramientas, el comando de registro de cada cliente (Codex, Claude Code y OpenCode), el almacenamiento seguro de una sesión de prueba y el inicio de Chromium pasan en CI para Windows, Linux y macOS.
-- Windows cuenta con validación previa. Linux y macOS todavía necesitan que estudiantes prueben el inicio de sesión y las consultas con cuentas reales. Esta beta sirve para esa validación.
-- El registro y las consultas con Claude Code y OpenCode se probaron a mano en Linux. El registro con `setup-codex` y los tres comandos en Windows y macOS todavía necesitan esa prueba manual.
+- Windows cuenta con validación previa. Linux se probó a mano con una cuenta real: inicio de sesión, `status`, `whoami` y consultas de materias y calendario desde Claude Code y OpenCode. macOS todavía necesita que estudiantes prueben el inicio de sesión y las consultas con cuentas reales. Esta beta sirve para esa validación.
+- El registro con `setup-codex` (en cualquier sistema) y los comandos `setup-claude` y `setup-opencode` en Windows y macOS todavía no se probaron a mano.
 - La CI no usa cuentas del Campus. Los resultados dependen de los permisos de tu cuenta, el contenido de tus materias y la disponibilidad del Campus.
 - **No hagas entregas ni publiques desde esta beta.** Las escrituras en Moodle están deshabilitadas.
 
