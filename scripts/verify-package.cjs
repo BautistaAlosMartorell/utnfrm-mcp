@@ -154,7 +154,8 @@ try {
   if (installedCodexSetup.status !== 0
     || !installedCodexSetup.stdout.includes('codex mcp add utn-mendoza --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node')
     || !installedCodexSetup.stdout.includes('node "' + installedExecutableForCodex + '"')) {
-    throw new Error(installedCodexSetup.stderr || 'Installed package did not print the Codex registration command.');
+    throw new Error('Installed package did not print the expected Codex registration command (exit '
+      + installedCodexSetup.status + '). stdout: ' + installedCodexSetup.stdout + ' stderr: ' + installedCodexSetup.stderr);
   }
 
   console.log('STDIO MCP smoke check OK: ' + toolList.length + ' tools.');
