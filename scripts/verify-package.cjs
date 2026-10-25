@@ -150,7 +150,7 @@ try {
     timeout: 10000
   });
   if (installedCodexSetup.error) throw installedCodexSetup.error;
-  const installedExecutableForCodex = installedEntrypoint.replace(/\\/g, '/');
+  const installedExecutableForCodex = fs.realpathSync(installedEntrypoint).replace(/\\/g, '/');
   if (installedCodexSetup.status !== 0
     || !installedCodexSetup.stdout.includes('codex mcp add utn-mendoza --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node')
     || !installedCodexSetup.stdout.includes('node "' + installedExecutableForCodex + '"')) {
