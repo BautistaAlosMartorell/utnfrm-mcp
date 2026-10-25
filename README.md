@@ -1,6 +1,6 @@
 # UTN FRM MCP
 
-Servidor MCP local para consultar materias, tareas, consignas, documentos, calificaciones, foros y calendario del Campus Virtual de la UTN Facultad Regional Mendoza desde Codex. Es un proyecto independiente, no oficial y sin afiliación institucional.
+Servidor MCP local para consultar materias, tareas, consignas, documentos, calificaciones, foros y calendario del Campus Virtual de la UTN Facultad Regional Mendoza desde Codex, Claude Code u OpenCode. Es un proyecto independiente, no oficial y sin afiliación institucional.
 
 ## Estado
 
@@ -14,7 +14,7 @@ La Release pública `v2.0.0` fue validada en Windows. El soporte Linux/macOS de 
 
 ## Instalar el paquete
 
-Descarga el `.tgz` adjunto a la Release indicada para tu sistema y abre una terminal en la carpeta de descarga. Necesitas Node.js 22.13 o posterior y Codex.
+Descarga el `.tgz` adjunto a la Release indicada para tu sistema y abre una terminal en la carpeta de descarga. Necesitas Node.js 22.13 o posterior y Codex, Claude Code u OpenCode.
 
 ### Windows (PowerShell)
 
@@ -53,9 +53,17 @@ En el primer guardado, acepta el acceso al Llavero si macOS lo solicita.
 1. Ejecuta `utn-mcp-mendoza login`. Se abre Chromium visible en el Campus oficial.
 2. Inicia sesión directamente en esa ventana. Cuando veas tu página principal, vuelve a la terminal y pulsa Enter.
 3. Confirma que la sesión funciona con `utn-mcp-mendoza status`.
-4. Ejecuta `utn-mcp-mendoza setup-codex`, copia el comando `codex mcp add ...` que muestra y ejecútalo en la misma terminal. El registro fija las entregas en `false`.
-5. Comprueba el registro con `codex mcp list` y reinicia Codex.
-6. En Codex, prueba: **Lista mis materias y las tareas próximas; distingue una lista vacía de un error de acceso.**
+4. Registra el MCP en tu cliente: ejecuta el comando de la tabla, copia el comando que muestra y ejecútalo en la misma terminal. El registro fija las entregas en `false`.
+
+   | Cliente | Genera el comando | Comprueba |
+   | --- | --- | --- |
+   | Codex | `utn-mcp-mendoza setup-codex` | `codex mcp list` |
+   | Claude Code | `utn-mcp-mendoza setup-claude` | `claude mcp list` |
+   | OpenCode | `utn-mcp-mendoza setup-opencode` | `opencode mcp list` |
+
+   Claude Code lo registra con alcance `user` (todos tus proyectos) y OpenCode en su configuración global.
+5. Reinicia el cliente.
+6. En el cliente, prueba: **Lista mis materias y las tareas próximas; distingue una lista vacía de un error de acceso.**
 
 Si la sesión vence, vuelve a ejecutar `utn-mcp-mendoza login`; no hace falta guardar ni volver a escribir la contraseña en el MCP.
 
@@ -75,14 +83,16 @@ La CI prueba los tres sistemas operativos sin usar una cuenta Moodle: instalaci�
 
 - **No abre Chromium:** ejecuta otra vez `utn-mcp-mendoza install-browser`. En Linux puede pedir permisos para instalar bibliotecas del sistema.
 - **El almacén seguro no está disponible:** desbloquea el Llavero de macOS o inicia una sesión de escritorio Linux con Secret Service activo; vuelve a ejecutar `login`.
-- **Codex no muestra las herramientas:** repite `setup-codex`, ejecuta el comando que imprime, confirma `codex mcp list` y reinicia Codex.
+- **El cliente no muestra las herramientas:** repite `setup-codex`, `setup-claude` o `setup-opencode`, ejecuta el comando que imprime, confirma con `codex|claude|opencode mcp list` y reinicia el cliente.
 - **No aparecen materias o actividades:** una respuesta vacía puede indicar que no hay contenido visible. Si el servidor informa un error de acceso, revisa la sesión con `status` y vuelve a iniciar sesión si venció.
 
 ## Desinstalar
 
 ```text
 utn-mcp-mendoza logout
-codex mcp remove utn-mendoza
+codex mcp remove utn-mendoza      # si lo registraste en Codex
+claude mcp remove utn-mendoza -s user   # si lo registraste en Claude Code
+opencode mcp remove utn-mendoza   # si lo registraste en OpenCode
 npm uninstall --global utn-mcp-mendoza
 ```
 

@@ -87,6 +87,21 @@ try {
     throw new Error(codexSetup.stderr || 'Packaged Codex setup command did not produce a registration command.');
   }
 
+  for (const [command, expected] of [
+    ['setup-claude', 'claude mcp add utn-mendoza --scope user --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node'],
+    ['setup-opencode', 'opencode mcp add --global --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false utn-mendoza -- node']
+  ]) {
+    const setup = spawnSync(process.execPath, [path.join(stagedPackage, 'dist', 'cli.js'), command], {
+      cwd: stagedPackage,
+      encoding: 'utf8',
+      timeout: 30000
+    });
+    if (setup.error) throw setup.error;
+    if (setup.status !== 0 || !setup.stdout.includes(expected)) {
+      throw new Error(setup.stderr || 'Packaged ' + command + ' did not produce a registration command.');
+    }
+  }
+
   const packed = spawnSync(process.execPath, [npmCli, 'pack', '--dry-run', '--json', '--cache', path.join(tempRoot, 'npm-cache')], {
     cwd: stagedPackage,
     encoding: 'utf8'

@@ -25,6 +25,8 @@
     "whoami": "node dist/cli.js whoami",
     "setup": "node dist/cli.js setup",
     "setup:codex": "node dist/cli.js setup-codex",
+    "setup:claude": "node dist/cli.js setup-claude",
+    "setup:opencode": "node dist/cli.js setup-opencode",
     "install:browser": "node dist/cli.js install-browser",
     "test:tools": "node dist/cli.js test",
     "probe:campus": "tsx scripts/campus-readonly-probe.ts",

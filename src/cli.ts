@@ -111,6 +111,22 @@ async function main(): Promise<void> {
       console.log('Reiniciá Codex para descubrir las herramientas.');
       return;
     }
+    case 'setup-claude': {
+      const executable = ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js';
+      console.log('Agregá UTN MCP Mendoza a Claude Code con este comando:');
+      console.log('claude mcp add utn-mendoza --scope user --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node "' + executable + '"');
+      console.log('Después verificá con: claude mcp list');
+      console.log('Reiniciá Claude Code para descubrir las herramientas.');
+      return;
+    }
+    case 'setup-opencode': {
+      const executable = ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js';
+      console.log('Agregá UTN MCP Mendoza a OpenCode con este comando:');
+      console.log('opencode mcp add --global --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false utn-mendoza -- node "' + executable + '"');
+      console.log('Después verificá con: opencode mcp list');
+      console.log('Reiniciá OpenCode para descubrir las herramientas.');
+      return;
+    }
     case 'install-browser': {
       const playwrightEntry = fileURLToPath(import.meta.resolve('playwright'));
       const playwrightCli = path.join(path.dirname(playwrightEntry), 'cli.js');
@@ -152,6 +168,8 @@ async function main(): Promise<void> {
       console.log('  utn-mcp-mendoza whoami      Muestra tu perfil');
       console.log('  utn-mcp-mendoza setup       Muestra bloques MCP');
       console.log('  utn-mcp-mendoza setup-codex Imprime el comando de instalación para Codex');
+      console.log('  utn-mcp-mendoza setup-claude Imprime el comando de instalación para Claude Code');
+      console.log('  utn-mcp-mendoza setup-opencode Imprime el comando de instalación para OpenCode');
       console.log('  utn-mcp-mendoza install-browser Instala Chromium compatible con esta versión');
       console.log('  utn-mcp-mendoza test        Comprueba lecturas sin guardar contenido ni ejecutar escrituras');
     }
