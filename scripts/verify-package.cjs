@@ -116,7 +116,9 @@ try {
   run(process.execPath, [npmCli, 'install', '--global', '--prefix', installPrefix,
     path.join(tempRoot, tarballName), '--ignore-scripts', '--no-audit', '--no-fund',
     '--cache', path.join(tempRoot, 'npm-cache')], projectRoot);
-  const installedPackage = path.join(installPrefix, 'node_modules', manifest.name);
+  const installedPackage = process.platform === 'win32'
+    ? path.join(installPrefix, 'node_modules', manifest.name)
+    : path.join(installPrefix, 'lib', 'node_modules', manifest.name);
   const installedEntrypoint = path.join(installedPackage, 'dist', 'index.js');
   if (!fs.existsSync(installedEntrypoint)) throw new Error('Installed package is missing dist/index.js.');
   const installedStdio = spawnSync(process.execPath, [installedEntrypoint], {
