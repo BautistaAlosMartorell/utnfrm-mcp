@@ -162,7 +162,7 @@ export async function uploadAndSubmitAssignmentFiles(args: {
 
   try {
     browser = await chromium.launch({ headless: true });
-    context = await browser.newContext({ storageState: SessionStore.getPlaywrightStorageState() });
+    context = await browser.newContext({ storageState: await SessionStore.getPlaywrightStorageState() });
     page = await context.newPage();
     await page.route('**/*', route => guardRoute(route, phase, writes));
     const editUrl = resolveCampusUrl(args.editUrl);

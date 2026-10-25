@@ -146,7 +146,7 @@ export class CampusClient {
       SessionStore.protectExistingSession();
       this.apiContext = await request.newContext({
         baseURL: CAMPUS_ORIGIN,
-        storageState: SessionStore.getPlaywrightStorageState(),
+        storageState: await SessionStore.getPlaywrightStorageState(),
         timeout: DEFAULT_TIMEOUT_MS,
         extraHTTPHeaders: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
@@ -363,7 +363,7 @@ export class CampusClient {
 
     if (!this.browserContext) {
       this.browserContext = await this.browser.newContext({
-        storageState: SessionStore.getPlaywrightStorageState()
+        storageState: await SessionStore.getPlaywrightStorageState()
       });
     }
 

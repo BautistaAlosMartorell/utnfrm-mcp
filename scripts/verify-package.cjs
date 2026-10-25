@@ -3,7 +3,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const projectRoot = path.resolve(__dirname, '..');
-const tempRoot = fs.mkdtempSync(path.join(projectRoot, '.package-check-'));
+const tempRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'UTN MCP package check-'));
 const stagedPackage = path.join(tempRoot, 'package');
 const stagedDist = path.join(tempRoot, 'dist');
 
@@ -116,7 +116,9 @@ try {
   run(process.execPath, [npmCli, 'install', '--global', '--prefix', installPrefix,
     path.join(tempRoot, tarballName), '--ignore-scripts', '--no-audit', '--no-fund',
     '--cache', path.join(tempRoot, 'npm-cache')], projectRoot);
-  const installedPackage = path.join(installPrefix, 'node_modules', manifest.name);
+  const installedPackage = process.platform === 'win32'
+    ? path.join(installPrefix, 'node_modules', manifest.name)
+    : path.join(installPrefix, 'lib', 'node_modules', manifest.name);
   const installedEntrypoint = path.join(installedPackage, 'dist', 'index.js');
   if (!fs.existsSync(installedEntrypoint)) throw new Error('Installed package is missing dist/index.js.');
   const installedStdio = spawnSync(process.execPath, [installedEntrypoint], {
@@ -133,18 +135,31 @@ try {
     throw new Error('Installed npm package did not expose all 19 MCP tools.');
   }
 
+  const browserSmoke = spawnSync(process.execPath, ['--input-type=module', '-e',
+    "import { chromium } from 'playwright'; const browser = await chromium.launch({ headless: true }); const page = await browser.newPage(); await page.setContent('<title>UTN MCP smoke</title>'); if (await page.title() !== 'UTN MCP smoke') process.exitCode = 1; await browser.close();"], {
+    cwd: installedPackage,
+    encoding: 'utf8',
+    timeout: 60000
+  });
+  if (browserSmoke.error) throw browserSmoke.error;
+  if (browserSmoke.status !== 0) throw new Error(browserSmoke.stderr || 'Packaged Playwright Chromium smoke check failed.');
+
   const installedCodexSetup = spawnSync(process.execPath, [path.join(installedPackage, 'dist', 'cli.js'), 'setup-codex'], {
     cwd: installPrefix,
     encoding: 'utf8',
     timeout: 10000
   });
   if (installedCodexSetup.error) throw installedCodexSetup.error;
-  if (installedCodexSetup.status !== 0 || !installedCodexSetup.stdout.includes('codex mcp add utn-mendoza --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node')) {
-    throw new Error(installedCodexSetup.stderr || 'Installed package did not print the Codex registration command.');
+  const installedExecutableForCodex = fs.realpathSync(installedEntrypoint).replace(/\\/g, '/');
+  if (installedCodexSetup.status !== 0
+    || !installedCodexSetup.stdout.includes('codex mcp add utn-mendoza --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node')
+    || !installedCodexSetup.stdout.includes('node "' + installedExecutableForCodex + '"')) {
+    throw new Error('Installed package did not print the expected Codex registration command (exit '
+      + installedCodexSetup.status + '). stdout: ' + installedCodexSetup.stdout + ' stderr: ' + installedCodexSetup.stderr);
   }
 
   console.log('STDIO MCP smoke check OK: ' + toolList.length + ' tools.');
-  console.log('Temporary global npm install OK: ' + installedTools.length + ' tools; Codex registration command available.');
+  console.log('Temporary global npm install OK: ' + installedTools.length + ' tools; Codex registration command available; packaged Chromium launches.');
   console.log('Package dry-run OK: ' + files.length + ' files; no session or development files included.');
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true });
