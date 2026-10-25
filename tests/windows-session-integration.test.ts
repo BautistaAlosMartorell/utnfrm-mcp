@@ -28,16 +28,16 @@ describeWindows('Windows DPAPI SessionStore integration', () => {
       origins: []
     };
 
-    SessionStore.save(fixture);
+    await SessionStore.save(fixture);
 
     const encryptedPath = path.join(sessionDir, 'storageState.dpapi');
     const encryptedContent = fs.readFileSync(encryptedPath, 'utf8');
     expect(encryptedContent.startsWith('UTN-MCP-DPAPI:v1:')).toBe(true);
     expect(encryptedContent).not.toContain('fixture-value');
     expect(fs.existsSync(path.join(sessionDir, 'storageState.json'))).toBe(false);
-    expect(SessionStore.getPlaywrightStorageState()).toEqual(fixture);
+    expect(await SessionStore.getPlaywrightStorageState()).toEqual(fixture);
 
-    SessionStore.clear();
+    await SessionStore.clear();
     expect(SessionStore.exists()).toBe(false);
     expect(fs.existsSync(encryptedPath)).toBe(false);
   }, 20_000);

@@ -11,17 +11,21 @@ export const ROOT_DIR = path.resolve(__dirname, '..');
 
 // Directorio y ruta para la sesión local
 const projectSessionDir = path.join(ROOT_DIR, '.session');
-const userStateDir = process.env.LOCALAPPDATA
-  ? path.join(process.env.LOCALAPPDATA, 'UTN MCP Mendoza')
-  : path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), '.local', 'state'), 'utn-mcp-mendoza');
+const xdgStateHome = process.env.XDG_STATE_HOME;
+const userStateDir = process.platform === 'win32'
+  ? path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'UTN MCP Mendoza')
+  : process.platform === 'darwin'
+    ? path.join(os.homedir(), 'Library', 'Application Support', 'UTN FRM MCP')
+    : path.join(xdgStateHome && path.isAbsolute(xdgStateHome) ? xdgStateHome : path.join(os.homedir(), '.local', 'state'), 'utn-mcp-mendoza');
 
 export const SESSION_DIR = process.env.UTN_MCP_SESSION_DIR
   ? path.resolve(process.env.UTN_MCP_SESSION_DIR)
-  : fs.existsSync(path.join(projectSessionDir, 'storageState.json'))
+  : process.platform === 'win32' && fs.existsSync(path.join(projectSessionDir, 'storageState.json'))
     ? projectSessionDir
     : userStateDir;
 export const STORAGE_STATE_PATH = path.join(SESSION_DIR, 'storageState.json');
 export const ENCRYPTED_STORAGE_STATE_PATH = path.join(SESSION_DIR, 'storageState.dpapi');
+export const SECURE_STORAGE_STATE_PATH = path.join(SESSION_DIR, 'storageState.enc');
 
 // URL base del Campus Virtual UTN Mendoza
 export const CAMPUS_ORIGIN = 'https://campusvirtual.frm.utn.edu.ar';

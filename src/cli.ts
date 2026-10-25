@@ -36,12 +36,10 @@ async function main(): Promise<void> {
       return;
     }
     case 'logout': {
-      if (SessionStore.exists()) {
-        SessionStore.clear();
-        console.log('Se eliminó la sesión local de UTN MCP Mendoza.');
-      } else {
-        console.log('No hay una sesión local guardada.');
-      }
+      let hadSession = false;
+      try { hadSession = SessionStore.exists(); } catch { hadSession = true; }
+      await SessionStore.clear();
+      console.log(hadSession ? 'Se elimino la sesion local de UTN MCP Mendoza.' : 'No habia una sesion local guardada.');
       return;
     }
     case 'status': {
@@ -116,7 +114,10 @@ async function main(): Promise<void> {
     case 'install-browser': {
       const playwrightEntry = fileURLToPath(import.meta.resolve('playwright'));
       const playwrightCli = path.join(path.dirname(playwrightEntry), 'cli.js');
-      const result = spawnSync(process.execPath, [playwrightCli, 'install', 'chromium'], { stdio: 'inherit' });
+      const browserArgs = process.platform === 'linux'
+        ? ['install', '--with-deps', 'chromium']
+        : ['install', 'chromium'];
+      const result = spawnSync(process.execPath, [playwrightCli, ...browserArgs], { stdio: 'inherit' });
       if (result.error) throw result.error;
       if (result.status !== 0) process.exitCode = result.status ?? 1;
       return;

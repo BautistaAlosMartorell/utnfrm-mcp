@@ -29,6 +29,7 @@
     "test:tools": "node dist/cli.js test",
     "probe:campus": "tsx scripts/campus-readonly-probe.ts",
     "package:check": "node scripts/verify-package.cjs",
+    "test:keyring": "node scripts/verify-keyring.mjs",
     "test": "vitest run --pool=forks --maxWorkers=1 --no-file-parallelism",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
@@ -54,6 +55,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.0",
     "cheerio": "^1.0.0",
+    "just-secrets": "0.0.2",
     "officeparser": "^8.2.0",
     "playwright": "^1.50.0",
     "turndown": "^7.2.0",

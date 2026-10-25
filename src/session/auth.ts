@@ -67,7 +67,7 @@ export async function loginInteractive(): Promise<boolean> {
     }
 
     // Guardar el estado de la sesión
-    SessionStore.save(await context.storageState());
+    await SessionStore.save(await context.storageState());
     SessionStore.protectSessionFile();
     console.log('\n[Éxito] Sesión guardada localmente. El archivo contiene cookies de autenticación: no lo compartas ni lo agregues a Git.');
     console.log('Ya podés utilizar el servidor MCP con asistentes de IA.\n');

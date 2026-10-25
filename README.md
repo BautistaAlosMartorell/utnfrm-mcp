@@ -1,93 +1,97 @@
 # UTN FRM MCP
 
-[![CI](https://github.com/BautistaAlosMartorell/utnfrm-mcp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/BautistaAlosMartorell/utnfrm-mcp/actions/workflows/ci.yml)
-
-Conectá un cliente de inteligencia artificial compatible con MCP al Campus Virtual de la UTN Facultad Regional Mendoza. Consultá tus materias, tareas, consignas, materiales, calificaciones, foros y calendario desde una conexión local.
-
-> Proyecto independiente y no oficial. No está afiliado ni cuenta con el aval de la UTN.
+Servidor MCP local para consultar materias, tareas, consignas, documentos, calificaciones, foros y calendario del Campus Virtual de la UTN Facultad Regional Mendoza desde Codex. Es un proyecto independiente, no oficial y sin afiliación institucional.
 
 ## Estado
 
-**Beta de solo lectura.** El servidor puede consultar información disponible para tu cuenta. Las publicaciones, votos, eventos y entregas están deshabilitados. El acceso y el contenido dependen de tu cuenta y de lo que cada materia tenga publicado.
-
-## Qué podés hacer
-
-- Ver materias y recorrer sus unidades y actividades.
-- Consultar tareas, fechas, consignas y materiales adjuntos.
-- Leer PDF, documentos de Office y otros formatos compatibles. Si la extracción queda incompleta, el resultado lo indica; el OCR de PDF es opcional y requiere modelos instalados localmente.
-- Consultar calificaciones, foros, discusiones y eventos del calendario.
-- Iniciar sesión en Moodle desde Chromium. El servidor no guarda tu contraseña.
+Beta de solo lectura. Las funciones de publicación, votos, eventos y entregas permanecen deshabilitadas. El acceso y el contenido dependen de los permisos de cada cuenta y de lo publicado en cada materia.
 
 ## Compatibilidad
 
-| Cliente | Estado |
-|---|---|
-| Codex para Windows | Configuración STDIO registrada con `codex mcp add`; reiniciá Codex para cargar las herramientas. |
-| Otros clientes compatibles con MCP STDIO | Se genera una configuración de ejemplo; no todos fueron probados en esta versión. |
+El servidor usa Node.js 22.13 o posterior y MCP por STDIO. La rama actual incorpora soporte para Windows, Linux y macOS. CI ejecuta pruebas en los tres sistemas: instalación limpia del paquete, intercambio MCP, generación del comando de registro de Codex, almacenamiento seguro nativo y arranque de Chromium.
 
-El paquete pasó una instalación limpia y un intercambio MCP por STDIO. La conexión utiliza Node.js en tu computadora; no requiere un servidor intermedio.
+La Release pública `v2.0.0` fue validada en Windows. El soporte Linux/macOS de esta rama aún no forma parte de una Release; espera una versión publicada con estos cambios antes de instalarlo en esos sistemas.
 
-## Instalar en Windows
+## Instalar el paquete
 
-Necesitás Node.js **22.13 o posterior** y Codex instalado. No hace falta clonar el repositorio ni editar código.
+Descarga el `.tgz` adjunto a la Release indicada para tu sistema y abre una terminal en la carpeta de descarga. Necesitas Node.js 22.13 o posterior y Codex.
 
-En PowerShell, descargá e instalá el paquete de la [Release 2.0.0](https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/tag/v2.0.0):
+### Windows (PowerShell)
 
 ```powershell
-$package = Join-Path $env:TEMP 'utn-mcp-mendoza-2.0.0.tgz'
-Invoke-WebRequest `
-  -Uri 'https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/download/v2.0.0/utn-mcp-mendoza-2.0.0.tgz' `
-  -OutFile $package
-npm install --global $package
+$package = Get-ChildItem .\utn-mcp-mendoza-*.tgz | Select-Object -First 1
+npm install --global $package.FullName
 utn-mcp-mendoza install-browser
 ```
 
-`install-browser` instala Chromium para el inicio de sesión.
+### Linux (Ubuntu/Debian)
 
-## Iniciar sesión y conectar Codex
+La sesión local se protege con Secret Service (GNOME Keyring o KWallet compatible). Instala los componentes del sistema y mantén activa la sesión gráfica y el almacén desbloqueado:
 
-1. Ejecutá `utn-mcp-mendoza login`. Se abrirá Chromium en el sitio oficial del Campus.
-2. Iniciá sesión allí. Cuando veas tu página principal, volvé a la consola y presioná Enter para guardar la sesión local.
-3. Confirmá el estado con `utn-mcp-mendoza status`.
-4. Ejecutá `utn-mcp-mendoza setup-codex` y copiá en PowerShell el comando `codex mcp add ...` que imprime. El comando fija las entregas en `false`.
-5. Comprobá el registro con `codex mcp list` y reiniciá Codex.
-6. Probá con una consulta como: **“Listá mis materias y las tareas con vencimiento próximo. Indicá si no hay resultados o si ocurrió un error de acceso.”**
+```bash
+sudo apt-get update
+sudo apt-get install -y libsecret-tools gnome-keyring
+npm install --global ./utn-mcp-mendoza-*.tgz
+utn-mcp-mendoza install-browser
+```
 
-Otras consultas posibles: “Abrí la consigna de esta tarea”, “Leé el PDF adjunto e indicá si la extracción fue parcial” o “Mostrame los próximos eventos del calendario”.
+En otras distribuciones, instala el equivalente a `libsecret-tools` y un proveedor Secret Service. Un entorno headless, SSH o WSL sin Secret Service no permite guardar la sesión con seguridad.
 
-## Privacidad y límites
+### macOS
 
-- Ingresás la contraseña directamente en la página del Campus; no se guarda en la configuración de Codex.
-- La sesión se conserva localmente y, en Windows, se protege con DPAPI para tu cuenta de usuario. No compartas la carpeta de sesión ni el archivo `storageState.dpapi`.
-- El contenido solicitado vuelve al cliente MCP que uses. Revisá las políticas de privacidad de ese cliente antes de consultar información sensible.
-- El servidor se comunica con el Campus por HTTPS. El contenido obtenido se trata como datos externos, no como instrucciones.
-- La extracción puede ser parcial. El OCR no se ejecuta por defecto y no descarga modelos; su preparación se explica en [la guía técnica](docs/maintainers.md).
-- Esta versión no modifica Moodle. No intentes habilitar las entregas para esta beta.
+La sesión local se protege con el Llavero de inicio de sesión de macOS:
 
-Leé la [política de seguridad y privacidad](SECURITY.md) antes de usar el servidor.
+```bash
+npm install --global ./utn-mcp-mendoza-*.tgz
+utn-mcp-mendoza install-browser
+```
 
-## Solución de problemas
+En el primer guardado, acepta el acceso al Llavero si macOS lo solicita.
 
-- **No reconoce `utn-mcp-mendoza` o `node`:** instalá Node.js 22.13 o posterior y abrí una nueva consola.
-- **No abre Chromium:** volvé a ejecutar `utn-mcp-mendoza install-browser` y después `utn-mcp-mendoza login`.
-- **La sesión venció:** ejecutá `utn-mcp-mendoza login`, iniciá sesión manualmente y revisá `utn-mcp-mendoza status`. No compartas credenciales por un issue.
-- **Codex no muestra las herramientas:** repetí `utn-mcp-mendoza setup-codex`, ejecutá el comando que imprime y reiniciá Codex.
-- **Una materia no tiene contenido:** puede devolver una lista vacía. Los errores de sesión, permisos o conexión se informan como errores.
+## Iniciar sesion y conectar Codex
+
+1. Ejecuta `utn-mcp-mendoza login`. Se abre Chromium visible en el Campus oficial.
+2. Inicia sesión directamente en esa ventana. Cuando veas tu página principal, vuelve a la terminal y pulsa Enter.
+3. Confirma que la sesión funciona con `utn-mcp-mendoza status`.
+4. Ejecuta `utn-mcp-mendoza setup-codex`, copia el comando `codex mcp add ...` que muestra y ejecútalo en la misma terminal. El registro fija las entregas en `false`.
+5. Comprueba el registro con `codex mcp list` y reinicia Codex.
+6. En Codex, prueba: **Lista mis materias y las tareas próximas; distingue una lista vacía de un error de acceso.**
+
+Si la sesión vence, vuelve a ejecutar `utn-mcp-mendoza login`; no hace falta guardar ni volver a escribir la contraseña en el MCP.
+
+## Sesiones y privacidad
+
+- La contraseña se introduce solamente en la página oficial del Campus y nunca se guarda.
+- Windows protege la sesión con DPAPI. macOS y Linux cifran el archivo local y guardan su clave en el Llavero o Secret Service del sistema. Si el almacén seguro no está disponible, el MCP falla sin guardar una copia en texto plano.
+- El directorio de sesión local es privado. No compartas sus archivos ni los adjuntes a un issue.
+- El contenido solicitado se devuelve al cliente MCP que uses. Revisa la privacidad de ese cliente antes de consultar información sensible.
+- El MCP envía las solicitudes al Campus por HTTPS y trata el contenido recuperado como datos externos, no como instrucciones.
+
+## Verificacion
+
+La CI prueba los tres sistemas operativos sin usar una cuenta Moodle: instalación limpia temporal, arranque STDIO, inicialización y listado de herramientas MCP, comando de registro Codex, almacenamiento nativo de una sesión sintética y lanzamiento de Chromium. La suite no sustituye un inicio de sesión real; el acceso al Campus y el contenido disponible deben validarse manualmente por cada estudiante. No se ejecutan escrituras en Moodle.
+
+## Solucion de problemas
+
+- **No abre Chromium:** ejecuta otra vez `utn-mcp-mendoza install-browser`. En Linux puede pedir permisos para instalar bibliotecas del sistema.
+- **El almacén seguro no está disponible:** desbloquea el Llavero de macOS o inicia una sesión de escritorio Linux con Secret Service activo; vuelve a ejecutar `login`.
+- **Codex no muestra las herramientas:** repite `setup-codex`, ejecuta el comando que imprime, confirma `codex mcp list` y reinicia Codex.
+- **No aparecen materias o actividades:** una respuesta vacía puede indicar que no hay contenido visible. Si el servidor informa un error de acceso, revisa la sesión con `status` y vuelve a iniciar sesión si venció.
 
 ## Desinstalar
 
-```powershell
+```text
 utn-mcp-mendoza logout
 codex mcp remove utn-mendoza
 npm uninstall --global utn-mcp-mendoza
 ```
 
-`logout` borra la sesión local de Moodle.
+`logout` elimina los archivos locales de sesión y su clave del almacén del sistema.
 
-## Reportar un problema o contribuir
+## Seguridad y problemas
 
-Usá [Issues](https://github.com/BautistaAlosMartorell/utnfrm-mcp/issues) para informar problemas sin datos privados. Para colaborar, consultá [CONTRIBUTING.md](CONTRIBUTING.md). Nunca adjuntes contraseñas, cookies, archivos de sesión, capturas del Campus ni consignas o calificaciones personales.
+Lee [SECURITY.md](SECURITY.md) antes de usarlo. Informa problemas en [GitHub Issues](https://github.com/BautistaAlosMartorell/utnfrm-mcp/issues) sin adjuntar credenciales, cookies, sesiones, capturas del Campus ni información académica privada.
 
 ## Licencia
 
-MIT. Consultá [LICENSE](LICENSE).
+MIT. Consulta [LICENSE](LICENSE).
