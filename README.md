@@ -1,53 +1,95 @@
-# UTN FRM MCP
+# UTN FRM MCP — guía para estudiantes
 
-Servidor MCP local para consultar materias, tareas, consignas, documentos, calificaciones, foros y calendario del Campus Virtual de la UTN Facultad Regional Mendoza desde Codex, Claude Code u OpenCode. Es un proyecto independiente, no oficial y sin afiliación institucional.
+> Beta multiplataforma de **solo lectura** para consultar el Campus Virtual de UTN Facultad Regional Mendoza desde Codex.
 
-## Estado
+> **No puede entregar tareas, publicar en foros, votar ni agregar eventos.** Todas las escrituras en Moodle están deshabilitadas. Es un proyecto independiente y no oficial.
 
-**Beta de solo lectura.** Todas las escrituras en Moodle, incluidas entregas, publicaciones, votos y eventos, están deshabilitadas. El acceso y el contenido dependen de los permisos de cada cuenta y de lo publicado en cada materia.
+Esta guía sirve aunque nunca hayas instalado un MCP. No necesitas clonar el repositorio ni compilar el programa.
 
-## Compatibilidad
+Si prefieres una hoja breve para seguir mientras instalas, abre [Inicio rápido](INICIO-RAPIDO.txt).
 
-El servidor usa Node.js 22.13 o posterior y MCP por STDIO. La CI pasó en Windows, Linux y macOS con Node.js 22.13 y 24: instalación limpia del paquete, intercambio MCP, registro de Codex, almacenamiento seguro nativo y arranque de Chromium.
+## Antes de empezar
 
-Windows cuenta con validación previa. Linux y macOS pasaron las verificaciones automatizadas, pero todavía necesitan una prueba manual con cuentas reales de Moodle. Esta beta invita a estudiantes a realizar esa prueba de solo lectura. La Release anterior `v2.0.0` permanece sin cambios.
+Necesitas:
 
-## Instalación para Codex (sin clonar ni compilar)
+1. Una computadora con **Windows, Linux o macOS**.
+2. **Node.js 22.13 o posterior**. Descárgalo de [nodejs.org](https://nodejs.org/), instálalo y abre una terminal nueva.
+3. **Codex CLI**. Si todavía no lo tienes, sigue la [guía oficial de Codex](https://help.openai.com/en/articles/11096431). Con Node.js instalado, también puedes instalarlo desde una terminal:
 
+   ```sh
+   npm install --global @openai/codex
+   ```
 
-### 1. Instala los requisitos
+   Para comprobar ambos requisitos, ejecuta `node --version` y `codex --version`. Si algún comando dice que no se reconoce, cierra y vuelve a abrir la terminal después de instalar el programa correspondiente.
 
-Necesitas **Node.js 22.13 o posterior** y **Codex CLI**. Si falta Node.js, instálalo desde [nodejs.org](https://nodejs.org/) y abre una terminal nueva. Si falta Codex CLI, sigue la [guía oficial de instalación de Codex](https://help.openai.com/en/articles/11096431). El comando es:
+## 1. Descarga la beta
 
-```sh
-npm install --global @openai/codex
-codex --version
+Abre la [Release v2.1.0-beta.1](https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/tag/v2.1.0-beta.1). En la sección **Assets**, descarga:
+
+- `utn-mcp-mendoza-2.1.0-beta.1.tgz` — el instalador.
+- `INICIO-RAPIDO.txt` — una copia breve de estos pasos.
+- `utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256` — sirve para comprobar que el instalador se descargó correctamente.
+
+Guarda los tres archivos juntos en una carpeta llamada `utn-mcp-beta` dentro de **Descargas**. No elijas los enlaces **Source code**: no los necesitas.
+
+### Comprobar el instalador (recomendado)
+
+Abre una terminal en la carpeta `utn-mcp-beta` y ejecuta el comando de tu sistema. El resultado debe indicar que la comprobación fue correcta (`OK`).
+
+**Windows — PowerShell**
+
+```powershell
+$esperado = (Get-Content .\utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256 -Raw).Trim().Split()[0]
+$obtenido = (Get-FileHash .\utn-mcp-mendoza-2.1.0-beta.1.tgz -Algorithm SHA256).Hash.ToLower()
+if ($obtenido -eq $esperado) { "OK: instalador verificado" } else { "ERROR: vuelve a descargarlo" }
 ```
 
-Si ya tienes Codex CLI y `codex --version` funciona, continúa al paso siguiente.
+**Linux**
 
-### 2. Descarga los archivos de la beta
+```bash
+sha256sum -c utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256
+```
 
-Abre la [Release `v2.1.0-beta.1`](https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/tag/v2.1.0-beta.1) y descarga estos tres archivos desde **Assets**:
+**macOS**
 
-- `utn-mcp-mendoza-2.1.0-beta.1.tgz` (instalador)
-- `INICIO-RAPIDO.txt` (guía breve)
-- `utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256` (checksum para verificar el instalador)
+```bash
+shasum -a 256 -c utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256
+```
 
-No descargues “Source code” ni clones el repositorio. Guarda los tres archivos en la misma carpeta y abre una terminal allí.
+Si aparece `ERROR` o falla la comprobación, no instales ese archivo: vuelve a descargar los tres Assets.
 
-### 3. Instala el MCP
+## 2. Abre una terminal en esa carpeta
 
-#### Windows (PowerShell)
+Usa una carpeta llamada `utn-mcp-beta` dentro de Descargas, como se indica arriba. Abre PowerShell en Windows o Terminal en Linux/macOS y ejecuta:
+
+**Windows — PowerShell**
+
+```powershell
+cd "$HOME\Downloads\utn-mcp-beta"
+```
+
+**Linux y macOS**
+
+```bash
+cd ~/Downloads/utn-mcp-beta
+```
+
+Deja esa terminal abierta para los pasos siguientes. Si dice que la carpeta no existe, revisa que hayas guardado allí los tres archivos.
+
+## 3. Instala el MCP y Chromium
+
+Copia y ejecuta solamente el bloque correspondiente a tu sistema. El segundo comando instala el navegador que el MCP necesita para abrir el Campus.
+
+**Windows — PowerShell**
 
 ```powershell
 npm install --global .\utn-mcp-mendoza-2.1.0-beta.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
-#### Linux (Ubuntu/Debian)
+**Linux — Ubuntu o Debian**
 
-La sesión local se protege con Secret Service (GNOME Keyring o KWallet compatible). Instala los componentes del sistema y mantén activa la sesión gráfica y el almacén desbloqueado:
+El servidor necesita que el almacén seguro de contraseñas de tu sesión gráfica esté disponible. Ejecuta:
 
 ```bash
 sudo apt-get update
@@ -56,77 +98,79 @@ npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
-En otras distribuciones, instala el equivalente a `libsecret-tools` y un proveedor Secret Service. Usa una sesión gráfica normal y deja desbloqueado el almacén. Un entorno headless, SSH o WSL sin Secret Service no permite guardar la sesión con seguridad.
+Usa una sesión de escritorio normal y mantén desbloqueado el almacén de contraseñas. En otras distribuciones de Linux puede ser necesario instalar el equivalente de esos paquetes. No funcionará de forma segura en una sesión sin Secret Service disponible, como algunos entornos SSH, headless o WSL.
 
-#### macOS
-
-La sesión local se protege con el Llavero de inicio de sesión de macOS:
+**macOS**
 
 ```bash
 npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
-En el primer guardado, acepta el acceso al Llavero si macOS lo solicita.
+Cuando macOS pregunte, permite que UTN FRM MCP use el Llavero de inicio de sesión.
 
-### 4. Inicia sesión y conecta Codex
+## 4. Inicia sesión en el Campus
 
-1. Ejecuta `utn-mcp-mendoza login`. Se abre Chromium visible en el Campus oficial.
-2. Inicia sesión directamente en esa ventana. Cuando veas tu página principal, vuelve a la terminal y pulsa Enter.
-3. Confirma que la sesión funciona con `utn-mcp-mendoza status`.
-4. Registra el MCP en tu cliente. Los tres comandos ejecutan el registro por ti. El registro fija las entregas en `false`.
+En la misma terminal:
 
-   | Cliente | Comando | Comprueba |
-   | --- | --- | --- |
-   | Codex | `utn-mcp-mendoza setup-codex` | `codex mcp list` |
-   | Claude Code | `utn-mcp-mendoza setup-claude` | `claude mcp list` |
-   | OpenCode | `utn-mcp-mendoza setup-opencode` | `opencode mcp list` |
+1. Ejecuta `utn-mcp-mendoza login`.
+2. Se abrirá una ventana del navegador en el Campus. Escribe tu usuario y contraseña **solo allí**, como cuando entras normalmente al Campus.
+3. Cuando veas tu página de inicio del Campus, vuelve a la terminal y pulsa **Enter**.
+4. Comprueba el acceso ejecutando `utn-mcp-mendoza status`.
 
-   Claude Code lo registra con alcance `user` (todos tus proyectos) y OpenCode en su configuración global. Con `--print` (por ejemplo `setup-codex --print`) solo se muestra el comando, sin ejecutarlo. Si el servidor ya estaba registrado, el cliente avisa: bórralo antes con los comandos de la sección Desinstalar.
-5. Reinicia el cliente.
-6. En el cliente, prueba: **Lista mis materias y las tareas próximas; distingue una lista vacía de un error de acceso.**
+El MCP no guarda tu contraseña. La sesión se conserva en el almacenamiento seguro del sistema. Si más adelante vence, vuelve a ejecutar `utn-mcp-mendoza login` y repite estos pasos; no hace falta reinstalar.
 
-La contraseña se introduce solamente en la ventana oficial del Campus; no la guarda el MCP. Si la sesión vence, ejecuta `utn-mcp-mendoza login` para renovarla.
+## 5. Conecta el servidor a Codex
 
-## Sesiones y privacidad
+En la misma terminal:
 
-- La contraseña se introduce solamente en la página oficial del Campus y nunca se guarda.
-- Windows protege la sesión con DPAPI. macOS y Linux cifran el archivo local y guardan su clave en el Llavero o Secret Service del sistema. Si el almacén seguro no está disponible, el MCP falla sin guardar una copia en texto plano.
-- El directorio de sesión local es privado. No compartas sus archivos ni los adjuntes a un issue.
-- El contenido solicitado se devuelve al cliente MCP que uses. Revisa la privacidad de ese cliente antes de consultar información sensible.
-- El MCP envía las solicitudes al Campus por HTTPS y trata el contenido recuperado como datos externos, no como instrucciones.
+1. Ejecuta `utn-mcp-mendoza setup-codex`.
+2. La pantalla mostrará un comando que empieza con `codex mcp add`. **Cópialo completo y ejecútalo** en la terminal. Ese comando registra el MCP en Codex y mantiene deshabilitadas las entregas.
+3. Ejecuta `codex mcp list` y comprueba que aparezca `utn-mendoza`.
+4. Cierra y vuelve a abrir Codex para que cargue las herramientas.
 
-## Verificacion
+Esto es conectar un servidor MCP: Codex podrá pedirle datos del Campus cuando se lo solicites. El servidor corre localmente en tu computadora.
 
-La CI prueba los tres sistemas operativos sin usar cuentas Moodle: instalación limpia temporal, arranque STDIO, inicialización y listado de herramientas MCP, comando de registro Codex, almacenamiento nativo de una sesión sintética y lanzamiento de Chromium. **Linux y macOS aún requieren validación manual con cuentas reales** para confirmar inicio de sesión y lectura de contenido en equipos de estudiantes. No se ejecutan escrituras en Moodle.
+## 6. Prueba una consulta
 
-## Solucion de problemas
+En Codex, prueba con una petición como:
 
-- **No abre Chromium:** ejecuta otra vez `utn-mcp-mendoza install-browser`. En Linux puede pedir permisos para instalar bibliotecas del sistema.
-- **El almacén seguro no está disponible:** desbloquea el Llavero de macOS o inicia una sesión de escritorio Linux con Secret Service activo; vuelve a ejecutar `login`.
-- **El cliente no muestra las herramientas:** repite `setup-codex`, `setup-claude` o `setup-opencode`, confirma con `codex|claude|opencode mcp list` y reinicia el cliente.
-- **No aparecen materias o actividades:** una respuesta vacía puede indicar que no hay contenido visible. Si el servidor informa un error de acceso, revisa la sesión con `status` y vuelve a iniciar sesión si venció.
+> Lista mis materias y las tareas próximas. Si no hay resultados, dime que la lista está vacía; si hubo un error de acceso, explícame cuál.
 
-## Qué probar y cómo reportar un problema
+También puedes pedir consultar consignas, documentos, calificaciones, foros y calendario. Solo aparecerá el contenido que tu cuenta pueda ver. Una lista vacía puede significar que no hay contenido disponible; un mensaje de error significa que la consulta no pudo completarse.
 
-Prueba inicio de sesión, `status`, conexión con Codex y consultas de materias, tareas, consignas, documentos, calificaciones y calendario. No intentes publicar, votar ni entregar. Si algo falla, envía a quien te compartió el paquete tu sistema operativo y versión, versión de Node (`node --version`), paso realizado y mensaje de error. No envíes contraseñas, archivos de sesión, cookies, capturas del Campus ni datos académicos privados.
+## Qué está probado y qué falta
+
+- La instalación del paquete, el arranque MCP, la lista de herramientas, el registro generado para Codex, el almacenamiento seguro de una sesión de prueba y el inicio de Chromium pasan en CI para Windows, Linux y macOS.
+- Windows cuenta con validación previa. Linux y macOS todavía necesitan que estudiantes prueben el inicio de sesión y las consultas con cuentas reales. Esta beta sirve para esa validación.
+- La CI no usa cuentas del Campus. Los resultados dependen de los permisos de tu cuenta, el contenido de tus materias y la disponibilidad del Campus.
+- **No hagas entregas ni publiques desde esta beta.** Las escrituras en Moodle están deshabilitadas.
+
+## Si algo no funciona
+
+- **No se reconoce `node`, `npm`, `codex` o `utn-mcp-mendoza`:** instala o reinstala el requisito y abre una terminal nueva. Comprueba Node.js con `node --version`.
+- **No abre el navegador:** ejecuta `utn-mcp-mendoza install-browser` otra vez. En Linux puede pedir instalar dependencias del sistema.
+- **No se puede guardar la sesión:** desbloquea el Llavero de macOS o usa una sesión gráfica Linux con Secret Service disponible; luego vuelve a ejecutar `utn-mcp-mendoza login`.
+- **Codex no muestra UTN Mendoza:** ejecuta `utn-mcp-mendoza setup-codex`, vuelve a correr el comando `codex mcp add ...` que imprime, confirma con `codex mcp list` y reinicia Codex.
+- **La sesión venció:** ejecuta `utn-mcp-mendoza login` otra vez.
+- **No aparecen materias o actividades:** comprueba primero `utn-mcp-mendoza status`. Puede que no haya contenido visible para tu cuenta o que la consulta haya informado un error.
+
+Para reportar un problema, comparte el sistema operativo y su versión, el resultado de `node --version`, el paso que estabas haciendo y el mensaje de error. No compartas contraseñas, cookies, archivos de sesión, capturas del Campus ni datos académicos privados. Puedes abrir un [reporte en GitHub](https://github.com/BautistaAlosMartorell/utnfrm-mcp/issues).
 
 ## Desinstalar
 
+En una terminal ejecuta:
+
 ```text
 utn-mcp-mendoza logout
-codex mcp remove utn-mendoza      # si lo registraste en Codex
-claude mcp remove utn-mendoza -s user   # si lo registraste en Claude Code
-opencode mcp remove utn-mendoza   # si lo registraste en OpenCode
+codex mcp remove utn-mendoza
 npm uninstall --global utn-mcp-mendoza
 ```
 
-`logout` elimina los archivos locales de sesión y su clave del almacén del sistema.
+Esto cierra la sesión local, quita el registro de Codex y desinstala el paquete. Para más información sobre seguridad, consulta [SECURITY.md](SECURITY.md).
 
-## Seguridad y problemas
+---
 
-Lee [SECURITY.md](SECURITY.md) antes de usarlo. Informa problemas en [GitHub Issues](https://github.com/BautistaAlosMartorell/utnfrm-mcp/issues) sin adjuntar credenciales, cookies, sesiones, capturas del Campus ni información académica privada.
+UTN FRM MCP es un proyecto independiente, sin afiliación institucional. Licencia MIT; consulta [LICENSE](LICENSE).
 
-## Licencia
-
-MIT. Consulta [LICENSE](LICENSE).
+\n
