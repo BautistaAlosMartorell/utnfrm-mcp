@@ -1,0 +1,98 @@
+UTN FRM MCP — GUÍA RÁPIDA PARA ESTUDIANTES
+Beta 2.1.0-beta.1 | Windows, Linux y macOS
+
+QUÉ ES
+Conecta Codex con el Campus Virtual de UTN Mendoza para consultar información que tu cuenta ya puede ver.
+
+IMPORTANTE: es una beta de solo lectura. No puede entregar tareas, escribir en foros, votar ni agregar eventos. Todas las escrituras en Moodle están deshabilitadas.
+
+1. PREPARA TU COMPUTADORA
+Necesitas Node.js 22.13 o posterior y Codex CLI.
+Node.js: https://nodejs.org/
+Codex CLI: https://help.openai.com/en/articles/11096431
+Si tienes Node.js, puedes instalar Codex CLI con:
+  npm install --global @openai/codex
+
+Abre una terminal nueva y comprueba:
+  node --version
+  codex --version
+
+2. DESCARGA LOS ARCHIVOS
+Abre la Release:
+https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/tag/v2.1.0-beta.1
+
+En “Assets”, descarga estos tres archivos:
+  utn-mcp-mendoza-2.1.0-beta.1.tgz
+  INICIO-RAPIDO.txt
+  utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256
+
+Guárdalos juntos en Descargas, dentro de una carpeta llamada “utn-mcp-beta”.
+No descargues “Source code”.
+
+3. ABRE UNA TERMINAL EN ESA CARPETA
+Windows — PowerShell:
+  cd "$HOME\Downloads\utn-mcp-beta"
+
+Linux o macOS — Terminal:
+  cd ~/Downloads/utn-mcp-beta
+
+Si aparece un error de carpeta inexistente, revisa que hayas guardado los tres archivos en esa ubicación.
+
+4. COMPRUEBA E INSTALA
+
+Windows — PowerShell:
+  $esperado = (Get-Content .\utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256 -Raw).Trim().Split()[0]
+  $obtenido = (Get-FileHash .\utn-mcp-mendoza-2.1.0-beta.1.tgz -Algorithm SHA256).Hash.ToLower()
+  if ($obtenido -eq $esperado) { "OK: archivo verificado" } else { "ERROR: vuelve a descargarlo" }
+  npm install --global .\utn-mcp-mendoza-2.1.0-beta.1.tgz
+  utn-mcp-mendoza install-browser
+
+Linux — Ubuntu o Debian:
+  sha256sum -c utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256
+  sudo apt-get update
+  sudo apt-get install -y libsecret-tools gnome-keyring
+  npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
+  utn-mcp-mendoza install-browser
+
+Usa una sesión gráfica normal y mantén desbloqueado el almacén de contraseñas. Otras distribuciones necesitan un proveedor Secret Service equivalente. Sin él, la sesión no se guarda de forma segura.
+
+macOS:
+  shasum -a 256 -c utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256
+  npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
+  utn-mcp-mendoza install-browser
+
+Si la verificación muestra “ERROR”, vuelve a descargar el instalador. En macOS, permite el acceso al Llavero si te lo pregunta.
+
+5. INICIA SESIÓN EN EL CAMPUS
+  utn-mcp-mendoza login
+
+Se abrirá una ventana del navegador en el Campus. Escribe tu contraseña solamente en esa página oficial. Cuando veas la página de inicio del Campus, vuelve a la terminal y pulsa Enter. Después ejecuta:
+  utn-mcp-mendoza status
+
+El MCP no guarda tu contraseña. Si la sesión vence otro día, vuelve a ejecutar “utn-mcp-mendoza login”; no reinstales.
+
+6. CONECTA CODEX
+Ejecuta:
+  utn-mcp-mendoza setup-codex
+
+Copia el comando completo que aparece (empieza con “codex mcp add”) y ejecútalo en la terminal. Después:
+  codex mcp list
+
+Comprueba que aparezca “utn-mendoza” y reinicia Codex.
+
+7. PRUEBA
+En Codex puedes escribir:
+  Lista mis materias y las tareas próximas. Si no hay resultados, dime que la lista está vacía; si hubo un error de acceso, explícame cuál.
+
+También puedes pedir consultar consignas, documentos, calificaciones, foros y calendario. La cuenta debe tener acceso a esos datos.
+
+QUÉ ESTÁ VALIDADO
+La instalación, el arranque MCP, el almacenamiento seguro de una sesión de prueba y Chromium se verifican automáticamente en Windows, Linux y macOS. Windows tiene validación previa. En Linux y macOS todavía falta probar el inicio de sesión y las consultas con cuentas reales; por eso esta beta necesita estudiantes que la prueben.
+
+NO intentes entregar tareas ni escribir en el Campus: todas las escrituras están deshabilitadas.
+
+SI ALGO FALLA
+Comparte con quien te dio la beta: sistema operativo y versión, resultado de “node --version”, el paso que estabas haciendo y el mensaje de error.
+No envíes contraseñas, cookies, archivos de sesión, capturas del Campus ni datos académicos privados.
+
+\n
