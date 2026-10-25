@@ -4,51 +4,72 @@ Servidor MCP local para consultar materias, tareas, consignas, documentos, calif
 
 ## Estado
 
-Beta de solo lectura. Las funciones de publicación, votos, eventos y entregas permanecen deshabilitadas. El acceso y el contenido dependen de los permisos de cada cuenta y de lo publicado en cada materia.
+**Beta de solo lectura.** Todas las escrituras en Moodle, incluidas entregas, publicaciones, votos y eventos, están deshabilitadas. El acceso y el contenido dependen de los permisos de cada cuenta y de lo publicado en cada materia.
 
 ## Compatibilidad
 
-El servidor usa Node.js 22.13 o posterior y MCP por STDIO. La rama actual incorpora soporte para Windows, Linux y macOS. CI ejecuta pruebas en los tres sistemas: instalación limpia del paquete, intercambio MCP, generación del comando de registro de Codex, almacenamiento seguro nativo y arranque de Chromium.
+El servidor usa Node.js 22.13 o posterior y MCP por STDIO. La CI pasó en Windows, Linux y macOS con Node.js 22.13 y 24: instalación limpia del paquete, intercambio MCP, registro de Codex, almacenamiento seguro nativo y arranque de Chromium.
 
-La Release pública `v2.0.0` fue validada en Windows. El soporte Linux/macOS de esta rama aún no forma parte de una Release; espera una versión publicada con estos cambios antes de instalarlo en esos sistemas.
+Windows cuenta con validación previa. Linux y macOS pasaron las verificaciones automatizadas, pero todavía necesitan una prueba manual con cuentas reales de Moodle. Esta beta invita a estudiantes a realizar esa prueba de solo lectura. La Release anterior `v2.0.0` permanece sin cambios.
 
-## Instalar el paquete
+## Instalación para Codex (sin clonar ni compilar)
 
-Descarga el `.tgz` adjunto a la Release indicada para tu sistema y abre una terminal en la carpeta de descarga. Necesitas Node.js 22.13 o posterior y Codex, Claude Code u OpenCode.
 
-### Windows (PowerShell)
+### 1. Instala los requisitos
+
+Necesitas **Node.js 22.13 o posterior** y **Codex CLI**. Si falta Node.js, instálalo desde [nodejs.org](https://nodejs.org/) y abre una terminal nueva. Si falta Codex CLI, sigue la [guía oficial de instalación de Codex](https://help.openai.com/en/articles/11096431). El comando es:
+
+```sh
+npm install --global @openai/codex
+codex --version
+```
+
+Si ya tienes Codex CLI y `codex --version` funciona, continúa al paso siguiente.
+
+### 2. Descarga los archivos de la beta
+
+Abre la [Release `v2.1.0-beta.1`](https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/tag/v2.1.0-beta.1) y descarga estos tres archivos desde **Assets**:
+
+- `utn-mcp-mendoza-2.1.0-beta.1.tgz` (instalador)
+- `INICIO-RAPIDO.txt` (guía breve)
+- `utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256` (checksum para verificar el instalador)
+
+No descargues “Source code” ni clones el repositorio. Guarda los tres archivos en la misma carpeta y abre una terminal allí.
+
+### 3. Instala el MCP
+
+#### Windows (PowerShell)
 
 ```powershell
-$package = Get-ChildItem .\utn-mcp-mendoza-*.tgz | Select-Object -First 1
-npm install --global $package.FullName
+npm install --global .\utn-mcp-mendoza-2.1.0-beta.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
-### Linux (Ubuntu/Debian)
+#### Linux (Ubuntu/Debian)
 
 La sesión local se protege con Secret Service (GNOME Keyring o KWallet compatible). Instala los componentes del sistema y mantén activa la sesión gráfica y el almacén desbloqueado:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y libsecret-tools gnome-keyring
-npm install --global ./utn-mcp-mendoza-*.tgz
+npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
-En otras distribuciones, instala el equivalente a `libsecret-tools` y un proveedor Secret Service. Un entorno headless, SSH o WSL sin Secret Service no permite guardar la sesión con seguridad.
+En otras distribuciones, instala el equivalente a `libsecret-tools` y un proveedor Secret Service. Usa una sesión gráfica normal y deja desbloqueado el almacén. Un entorno headless, SSH o WSL sin Secret Service no permite guardar la sesión con seguridad.
 
-### macOS
+#### macOS
 
 La sesión local se protege con el Llavero de inicio de sesión de macOS:
 
 ```bash
-npm install --global ./utn-mcp-mendoza-*.tgz
+npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
 En el primer guardado, acepta el acceso al Llavero si macOS lo solicita.
 
-## Iniciar sesion y conectar Codex
+### 4. Inicia sesión y conecta Codex
 
 1. Ejecuta `utn-mcp-mendoza login`. Se abre Chromium visible en el Campus oficial.
 2. Inicia sesión directamente en esa ventana. Cuando veas tu página principal, vuelve a la terminal y pulsa Enter.
@@ -65,7 +86,7 @@ En el primer guardado, acepta el acceso al Llavero si macOS lo solicita.
 5. Reinicia el cliente.
 6. En el cliente, prueba: **Lista mis materias y las tareas próximas; distingue una lista vacía de un error de acceso.**
 
-Si la sesión vence, vuelve a ejecutar `utn-mcp-mendoza login`; no hace falta guardar ni volver a escribir la contraseña en el MCP.
+La contraseña se introduce solamente en la ventana oficial del Campus; no la guarda el MCP. Si la sesión vence, ejecuta `utn-mcp-mendoza login` para renovarla.
 
 ## Sesiones y privacidad
 
@@ -77,7 +98,7 @@ Si la sesión vence, vuelve a ejecutar `utn-mcp-mendoza login`; no hace falta gu
 
 ## Verificacion
 
-La CI prueba los tres sistemas operativos sin usar una cuenta Moodle: instalación limpia temporal, arranque STDIO, inicialización y listado de herramientas MCP, comando de registro Codex, almacenamiento nativo de una sesión sintética y lanzamiento de Chromium. La suite no sustituye un inicio de sesión real; el acceso al Campus y el contenido disponible deben validarse manualmente por cada estudiante. No se ejecutan escrituras en Moodle.
+La CI prueba los tres sistemas operativos sin usar cuentas Moodle: instalación limpia temporal, arranque STDIO, inicialización y listado de herramientas MCP, comando de registro Codex, almacenamiento nativo de una sesión sintética y lanzamiento de Chromium. **Linux y macOS aún requieren validación manual con cuentas reales** para confirmar inicio de sesión y lectura de contenido en equipos de estudiantes. No se ejecutan escrituras en Moodle.
 
 ## Solucion de problemas
 
@@ -85,6 +106,10 @@ La CI prueba los tres sistemas operativos sin usar una cuenta Moodle: instalaci�
 - **El almacén seguro no está disponible:** desbloquea el Llavero de macOS o inicia una sesión de escritorio Linux con Secret Service activo; vuelve a ejecutar `login`.
 - **El cliente no muestra las herramientas:** repite `setup-codex`, `setup-claude` o `setup-opencode`, ejecuta el comando que imprime, confirma con `codex|claude|opencode mcp list` y reinicia el cliente.
 - **No aparecen materias o actividades:** una respuesta vacía puede indicar que no hay contenido visible. Si el servidor informa un error de acceso, revisa la sesión con `status` y vuelve a iniciar sesión si venció.
+
+## Qué probar y cómo reportar un problema
+
+Prueba inicio de sesión, `status`, conexión con Codex y consultas de materias, tareas, consignas, documentos, calificaciones y calendario. No intentes publicar, votar ni entregar. Si algo falla, envía a quien te compartió el paquete tu sistema operativo y versión, versión de Node (`node --version`), paso realizado y mensaje de error. No envíes contraseñas, archivos de sesión, cookies, capturas del Campus ni datos académicos privados.
 
 ## Desinstalar
 
