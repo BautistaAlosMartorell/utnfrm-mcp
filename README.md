@@ -143,6 +143,31 @@ En tu cliente, prueba con una petición como:
 
 También puedes pedir consultar consignas, documentos, calificaciones, foros y calendario. Solo aparecerá el contenido que tu cuenta pueda ver. Una lista vacía puede significar que no hay contenido disponible; un mensaje de error significa que la consulta no pudo completarse.
 
+## Qué puede consultar
+
+Además de las herramientas básicas (materias, tareas, archivos, notas, foros y calendario), la beta incluye:
+
+| Herramienta | Para qué sirve |
+| --- | --- |
+| `get_course_contents` | Todas las unidades de una materia con sus actividades en una sola consulta; funciona también con el formato por mosaicos. |
+| `get_deadlines` | Próximas entregas y cierres de cuestionarios, de una materia o de todas, ordenadas por fecha y con tu estado de entrega. |
+| `get_announcements` | Avisos recientes del foro de novedades, con fecha y, si querés, el texto. |
+| `get_quiz_info` | Reglas, nota e intentos de un cuestionario, o todos los de una materia. Nunca inicia ni envía un intento. |
+| `download_file` | Guarda un archivo del Campus en una carpeta local (`~/Downloads/utn-mcp`) sin sobrescribir nada. |
+| `read_file` con `full: true` | Devuelve el documento completo en una sola respuesta en vez de fragmentos. |
+
+En las herramientas que piden una materia podés usar su nombre ("ciencia de datos") en lugar del ID numérico. `list_courses` acepta `query` para filtrar por nombre. Las fechas se informan en formato ISO 8601 con la zona horaria del Campus (UTC-03:00).
+
+## Variables de entorno opcionales
+
+| Variable | Efecto |
+| --- | --- |
+| `UTN_MCP_DEBUG=1` | Muestra el detalle técnico (pila de llamadas, sin URLs ni credenciales) cuando un comando de la terminal falla. |
+| `UTN_MCP_CACHE=1` | Guarda en disco los archivos descargados para no volver a bajarlos. Está **desactivada** por defecto porque deja material académico sin cifrar en tu equipo. |
+| `UTN_MCP_CACHE_DIR` | Ruta absoluta de la caché (por defecto, dentro de la carpeta de sesión). Máximo 200 MiB; las entradas vencen a los 14 días. |
+| `UTN_MCP_DOWNLOAD_DIR` | Ruta absoluta donde `download_file` guarda los archivos (por defecto `~/Downloads/utn-mcp`). |
+| `UTN_MCP_MIN_REQUEST_INTERVAL_MS` | Pausa mínima entre consultas al Campus (por defecto 1000). Con muchas materias, `get_deadlines` y `get_announcements` pueden devolver `partial: true`; volvé a pedir las pendientes con `course_id`. |
+
 ## Qué está probado y qué falta
 
 - La instalación del paquete, el arranque MCP, la lista de herramientas, el comando de registro de cada cliente (Codex, Claude Code y OpenCode), el almacenamiento seguro de una sesión de prueba y el inicio de Chromium pasan en CI para Windows, Linux y macOS.
@@ -155,6 +180,8 @@ También puedes pedir consultar consignas, documentos, calificaciones, foros y c
 
 - **No se reconoce `node`, `npm`, `utn-mcp-mendoza` o el comando de tu cliente (`codex`, `claude`, `opencode`):** instala o reinstala el requisito y abre una terminal nueva. Comprueba Node.js con `node --version`.
 - **No abre el navegador:** ejecuta `utn-mcp-mendoza install-browser` otra vez. En Linux puede pedir instalar dependencias del sistema.
+- **`install-browser` pide `sudo` en Linux:** el comando instala solo Chromium. Si además faltan bibliotecas del sistema, ejecutá `utn-mcp-mendoza install-browser --with-deps`.
+- **El navegador "no existe" tras actualizar:** cada versión del MCP necesita su propio Chromium; ejecutá `utn-mcp-mendoza install-browser` otra vez.
 - **No se puede guardar la sesión:** desbloquea el Llavero de macOS o usa una sesión gráfica Linux con Secret Service disponible; luego vuelve a ejecutar `utn-mcp-mendoza login`.
 - **Tu cliente no muestra UTN Mendoza:** ejecuta otra vez `utn-mcp-mendoza setup-codex`, `setup-claude` o `setup-opencode`, confirma con `codex mcp list`, `claude mcp list` u `opencode mcp list` y reinicia el cliente. Si dice que ya existe, quítalo (sección **Desinstalar**) y repite.
 - **La sesión venció:** ejecuta `utn-mcp-mendoza login` otra vez.

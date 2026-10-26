@@ -3,14 +3,36 @@ import { parseForumsList, parseForumDiscussions, parseDiscussionPosts } from '..
 import { ForumItem, DiscussionItem, ForumPostItem } from '../types/index.js';
 import { PATHS } from '../config.js';
 import { requireMoodleId } from '../client/moodle-id.js';
+import { resolveCampusUrl } from '../client/campus-url.js';
+import { resolveCourse } from './course-ref.js';
 import { writesDisabledResult } from '../client/write-policy.js';
+
+/**
+ * Acepta el id del módulo (cmid), o una URL de foro con `id` (módulo) o `f` (instancia). `list_forums`
+ * devuelve ids de instancia en este Campus, por eso se admite la URL completa.
+ */
+export function resolveForumView(forumIdOrUrl: string): { forumId: string; path: string } {
+  const candidate = forumIdOrUrl.trim();
+  if (/^\d{1,12}$/.test(candidate)) return { forumId: candidate, path: PATHS.forumView(candidate) };
+  const url = new URL(resolveCampusUrl(candidate));
+  if (url.pathname !== '/mod/forum/view.php') {
+    throw new Error('Se esperaba un ID de foro o una URL de /mod/forum/view.php del Campus.');
+  }
+  const moduleId = url.searchParams.get('id');
+  if (moduleId && /^\d{1,12}$/.test(moduleId)) return { forumId: moduleId, path: PATHS.forumView(moduleId) };
+  const instanceId = url.searchParams.get('f');
+  if (instanceId && /^\d{1,12}$/.test(instanceId)) {
+    return { forumId: instanceId, path: `/mod/forum/view.php?f=${instanceId}` };
+  }
+  throw new Error('La URL del foro debe incluir un valor numérico en id o f.');
+}
 
 export async function handleListForums(courseId: string): Promise<{
   courseId: string;
   forums: ForumItem[];
   count: number;
 }> {
-  const cleanCourseId = requireMoodleId(courseId);
+  const cleanCourseId = (await resolveCourse(courseId)).id;
   const html = await campusClient.getHtml(PATHS.forumIndex(cleanCourseId));
   const forums = parseForumsList(html);
 
@@ -26,8 +48,8 @@ export async function handleGetForumDiscussions(forumIdOrUrl: string): Promise<{
   discussions: DiscussionItem[];
   count: number;
 }> {
-  const forumId = requireMoodleId(forumIdOrUrl);
-  const html = await campusClient.getHtml(PATHS.forumView(forumId));
+  const { forumId, path } = resolveForumView(forumIdOrUrl);
+  const html = await campusClient.getHtml(path);
   const discussions = parseForumDiscussions(html);
 
   return {

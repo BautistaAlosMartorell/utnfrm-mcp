@@ -112,8 +112,12 @@ export interface DiscussionItem {
   title: string;
   author: string;
   createdDate?: string;
+  createdDateIso?: string;
   repliesCount: number;
   lastPostDate?: string;
+  lastPostDateIso?: string;
+  lastPostAuthor?: string;
+  pinned?: boolean;
   url: string;
 }
 
@@ -123,6 +127,7 @@ export interface ForumPostItem {
   author: string;
   authorPicture?: string;
   date: string;
+  dateIso?: string;
   messageHtml?: string;
   messageMarkdown: string;
   attachments?: Attachment[];
@@ -139,6 +144,72 @@ export interface CalendarEventItem {
   courseName?: string;
   courseId?: string;
   url?: string;
+}
+
+// Contenido de curso por secciones
+export interface CourseActivity {
+  id: string;
+  name: string;
+  /** Tipo normalizado: assignment, forum, resource, folder, page, quiz, external_url, label, etc. */
+  type: string;
+  /** Nombre de módulo de Moodle tal como aparece en el Campus (assign, url, resource…). */
+  modname: string;
+  url?: string;
+  description?: string;
+  completion?: 'done' | 'pending';
+  hidden?: boolean;
+}
+
+export interface CourseSectionContent {
+  number: number;
+  name: string;
+  hidden?: boolean;
+  summary?: string;
+  /** false si la página no trajo el contenido de la sección (formato tiles) y hay que pedirla aparte. */
+  rendered: boolean;
+  activities: CourseActivity[];
+}
+
+// Cuestionarios
+export interface QuizSummary {
+  id: string;
+  name: string;
+  url: string;
+  section?: string;
+  closes?: string;
+  closesIso?: string;
+  grade?: string;
+}
+
+export interface QuizAttempt {
+  number?: number;
+  state?: string;
+  started?: string;
+  startedIso?: string;
+  completed?: string;
+  completedIso?: string;
+  duration?: string;
+  points?: string;
+  grade?: string;
+  reviewUrl?: string;
+}
+
+export interface QuizDetail {
+  id: string;
+  name: string;
+  url: string;
+  gradingMethod?: string;
+  attemptsAllowed?: string;
+  timeLimit?: string;
+  opens?: string;
+  opensIso?: string;
+  closes?: string;
+  closesIso?: string;
+  passingGrade?: string;
+  bestGrade?: string;
+  canStartAttempt: boolean;
+  attempts: QuizAttempt[];
+  notes: string[];
 }
 
 // Consulta / Elección (mod_choice)
@@ -170,7 +241,7 @@ export interface NavigationItem {
 }
 
 export interface NavigationResult {
-  kind: 'course' | 'section' | 'assignment' | 'forum' | 'discussion' | 'resource' | 'page' | 'choice' | 'generic';
+  kind: 'course' | 'section' | 'assignment' | 'forum' | 'discussion' | 'resource' | 'folder' | 'quiz' | 'page' | 'choice' | 'generic';
   title: string;
   parent?: { name: string; url: string };
   breadcrumbs: string[];
@@ -207,10 +278,14 @@ export interface ExtractedFileContent {
 // ==========================================
 
 // Herramientas Existentes (Mantenidas 100% compatibles)
-export const ListCoursesInputSchema = z.object({});
+const COURSE_REF_DESCRIPTION = 'Materia: ID numérico (de list_courses), URL del curso o su nombre, por ejemplo "126" o "ciencia de datos". Si el nombre es ambiguo se informan las candidatas.';
+
+export const ListCoursesInputSchema = z.object({
+  query: z.string().trim().min(1).max(200).optional().describe('Filtro opcional por nombre (sin acentos ni mayúsculas), por ejemplo "inteligencia" o "redes neuronales"')
+});
 
 export const ListAssignmentsInputSchema = z.object({
-  course_id: z.string().trim().min(1).max(2048).describe('ID numérico de la materia (obtenido mediante list_courses, por ejemplo "126")')
+  course_id: z.string().trim().min(1).max(2048).describe(COURSE_REF_DESCRIPTION)
 });
 
 export const GetAssignmentInputSchema = z.object({
@@ -218,7 +293,7 @@ export const GetAssignmentInputSchema = z.object({
 });
 
 export const ListResourcesInputSchema = z.object({
-  course_id: z.string().trim().min(1).max(2048).describe('ID numérico de la materia (obtenido mediante list_courses, por ejemplo "126")')
+  course_id: z.string().trim().min(1).max(2048).describe(COURSE_REF_DESCRIPTION)
 });
 
 // Navegación Unificada
@@ -234,12 +309,13 @@ export const ReadFileInputSchema = z.object({
   url: z.string().trim().min(1).max(2048).describe('URL del recurso o archivo en el Campus Virtual (ej: /mod/resource/view.php?id=... o /pluginfile.php/...)'),
   page: z.number().int().positive().max(10000).optional().describe('Número de página o fragmento a leer, inicia en 1'),
   page_size: z.number().int().min(256).max(20000).optional().describe('Cantidad máxima de caracteres por fragmento (por defecto 8000; máximo 20000)'),
-  format: z.enum(['markdown', 'text', 'raw']).optional().describe('Salida extra?da: markdown conserva tablas; text y raw devuelven texto plano, no bytes binarios.'),
+  format: z.enum(['markdown', 'text', 'raw']).optional().describe('Salida extraída: markdown conserva tablas; text y raw devuelven texto plano, no bytes binarios.'),
+  full: z.boolean().optional().describe('true devuelve el documento completo en una sola respuesta (hasta 150.000 caracteres) en vez de fragmentos de 8.000; si todavía se trunca, continuar con offset.')
 });
 
 // Calificaciones
 export const GetGradesInputSchema = z.object({
-  course_id: z.string().trim().min(1).max(2048).describe('ID numérico de la materia para obtener el libro de calificaciones completo con notas y feedback de los docentes')
+  course_id: z.string().trim().min(1).max(2048).describe(COURSE_REF_DESCRIPTION)
 });
 
 // Perfil de Usuario
@@ -247,17 +323,17 @@ export const WhoamiInputSchema = z.object({});
 
 // Participantes
 export const ListParticipantsInputSchema = z.object({
-  course_id: z.string().trim().min(1).max(2048).describe('ID numérico de la materia para listar compañeros y profesores'),
+  course_id: z.string().trim().min(1).max(2048).describe(COURSE_REF_DESCRIPTION),
   role: z.enum(['student', 'teacher', 'all']).optional().describe('Filtrar participantes por rol: "student", "teacher" o "all" (por defecto "all")')
 });
 
 // Foros
 export const ListForumsInputSchema = z.object({
-  course_id: z.string().trim().min(1).max(2048).describe('ID numérico de la materia para listar todos los foros disponibles')
+  course_id: z.string().trim().min(1).max(2048).describe(COURSE_REF_DESCRIPTION)
 });
 
 export const GetForumDiscussionsInputSchema = z.object({
-  forum_id: z.string().describe('ID numérico del módulo del foro (ej: /mod/forum/view.php?id=16227 o "16227")')
+  forum_id: z.string().trim().min(1).max(2048).describe('URL del foro tal como la devuelve list_forums (…/mod/forum/view.php?f=… o ?id=…), o el ID numérico del módulo (ej: "16227")')
 });
 
 export const GetDiscussionPostsInputSchema = z.object({
@@ -315,3 +391,35 @@ export const SubmitAssignmentInputSchema = z.object({
     .describe('Rutas locales de archivos que el proceso MCP local puede leer. Máximo 10 archivos.'),
   confirm: z.literal(false).optional().default(false).describe('Compatibilidad con clientes antiguos: debe ser false. true se rechaza y nunca autoriza una escritura.')
 }).strict();
+
+// Contenido de curso, entregas, avisos, cuestionarios y descargas
+export const GetCourseContentsInputSchema = z.object({
+  course_id: z.string().trim().min(1).max(2048).describe(COURSE_REF_DESCRIPTION),
+  section: z.string().trim().min(1).max(100).optional().describe('Opcional: número o parte del nombre de una sección ("3", "unidad 3") para leer solo esa'),
+  include_labels: z.boolean().optional().describe('false omite las etiquetas de texto del curso (por defecto se incluyen)')
+});
+
+export const GetDeadlinesInputSchema = z.object({
+  course_id: z.string().trim().min(1).max(2048).optional().describe('Opcional: una sola materia (ID, URL o nombre). Si se omite se revisan todas.'),
+  days_ahead: z.number().int().min(1).max(365).optional().describe('Ventana de días hacia adelante (por defecto 30)'),
+  include_completed: z.boolean().optional().describe('true incluye lo ya entregado o con nota (por defecto no)'),
+  include_overdue: z.boolean().optional().describe('false oculta lo vencido sin entregar (por defecto se muestra)'),
+  overdue_days: z.number().int().min(1).max(3650).optional().describe('Hasta cuántos días atrás se muestra lo vencido sin entregar (por defecto 14)')
+});
+
+export const GetAnnouncementsInputSchema = z.object({
+  course_id: z.string().trim().min(1).max(2048).optional().describe('Opcional: una sola materia (ID, URL o nombre). Si se omite se revisan todas.'),
+  limit: z.number().int().min(1).max(50).optional().describe('Cantidad máxima de avisos (por defecto 10)'),
+  since: z.string().trim().min(8).max(40).optional().describe('Solo avisos con actividad desde esta fecha (2026-10-01 o ISO 8601)'),
+  include_body: z.boolean().optional().describe('true agrega el texto de los 5 avisos más nuevos')
+});
+
+export const GetQuizInfoInputSchema = z.object({
+  quiz_id: z.string().trim().min(1).max(2048).optional().describe('ID o URL de un cuestionario: devuelve reglas, nota e intentos'),
+  course_id: z.string().trim().min(1).max(2048).optional().describe('Materia (ID, URL o nombre): devuelve todos sus cuestionarios con cierre y nota')
+});
+
+export const DownloadFileInputSchema = z.object({
+  url: z.string().trim().min(1).max(2048).describe('URL del recurso o archivo del Campus (…/mod/resource/view.php?id=… o …/pluginfile.php/…)'),
+  filename: z.string().trim().min(1).max(200).optional().describe('Nombre opcional para el archivo local; se guarda siempre en la carpeta de descargas del MCP')
+});

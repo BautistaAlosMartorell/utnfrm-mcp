@@ -8,6 +8,8 @@ export interface FileExtractionOptions {
   offset?: number;
   ocr?: boolean;
   format?: 'markdown' | 'text' | 'raw';
+  /** Permite un fragmento grande (hasta 150.000 caracteres) para leer un documento completo en una sola respuesta. */
+  full?: boolean;
 }
 
 type PdfPage = { text?: string; metadata?: { pageNumber?: number } };
@@ -36,19 +38,20 @@ const OFFICE_DECOMPRESSION_LIMITS = {
 
 const MAX_PDF_OUTPUT_CHARACTERS = 5_000_000;
 const MAX_OCR_PAGES_PER_REQUEST = 10;
+export const MAX_FULL_READ_CHARACTERS = 150_000;
 
 function safeOfficeIssueWarning(issue: { code?: string; type?: string }): string | undefined {
   switch (issue.code) {
-    case 'PDF_NO_TEXT_EXTRACTED': return 'Una o mÃ¡s pÃ¡ginas no contienen texto digital extraÃ­ble; pueden ser escaneos o imÃ¡genes.';
-    case 'PDF_CONTENT_LIMIT_EXCEEDED': return 'La lectura del PDF alcanzÃ³ un lÃ­mite de seguridad; el resultado puede estar incompleto.';
+    case 'PDF_NO_TEXT_EXTRACTED': return 'Una o más páginas no contienen texto digital extraíble; pueden ser escaneos o imágenes.';
+    case 'PDF_CONTENT_LIMIT_EXCEEDED': return 'La lectura del PDF alcanzó un límite de seguridad; el resultado puede estar incompleto.';
     case 'PDF_TEXT_ENCODING_SUSPECT': return 'El PDF contiene caracteres que no pudieron decodificarse con fiabilidad.';
-    case 'PAGE_LOAD_FAILED': return 'No se pudo leer una o mÃ¡s pÃ¡ginas del documento.';
+    case 'PAGE_LOAD_FAILED': return 'No se pudo leer una o más páginas del documento.';
     case 'ANNOTATION_EXTRACTION_FAILED': return 'No se pudieron leer todos los enlaces o anotaciones del PDF.';
-    case 'OCR_FAILED': return 'FallÃ³ el OCR local de una o mÃ¡s imÃ¡genes; el texto reconocido puede estar incompleto.';
-    case 'OCR_REQUIRES_ATTACHMENTS': return 'El procesador no pudo adjuntar las imÃ¡genes necesarias para OCR.';
+    case 'OCR_FAILED': return 'Falló el OCR local de una o más imágenes; el texto reconocido puede estar incompleto.';
+    case 'OCR_REQUIRES_ATTACHMENTS': return 'El procesador no pudo adjuntar las imágenes necesarias para OCR.';
     case 'IMAGE_EXTRACTION_FAILED':
-    case 'IMAGE_PROCESSING_FAILED': return 'No se pudieron procesar todas las imÃ¡genes del PDF.';
-    case 'PDF_SEPARATE_PROCESS_UNAVAILABLE': return 'El procesador aislado de PDF no estuvo disponible; se usÃ³ el proceso principal.';
+    case 'IMAGE_PROCESSING_FAILED': return 'No se pudieron procesar todas las imágenes del PDF.';
+    case 'PDF_SEPARATE_PROCESS_UNAVAILABLE': return 'El procesador aislado de PDF no estuvo disponible; se usó el proceso principal.';
     default: return issue.type === 'error' || issue.code
       ? 'El procesador detect\u00f3 una limitaci\u00f3n durante la extracci\u00f3n; el resultado puede estar incompleto.'
       : undefined;
@@ -66,7 +69,9 @@ export async function extractFileContent(
   options: FileExtractionOptions = {}
 ): Promise<ExtractedFileContent> {
   const requestedPageSize = Number.isFinite(options.pageSize) ? options.pageSize! : 8000;
-  const pageSize = Math.max(256, Math.min(Math.trunc(requestedPageSize), 20000));
+  const pageSize = options.full
+    ? MAX_FULL_READ_CHARACTERS
+    : Math.max(256, Math.min(Math.trunc(requestedPageSize), 20000));
   const ext = (filename.split('.').pop() || '').toLowerCase();
   const officeOutputFormat = options.format === 'text' || options.format === 'raw' ? 'text' : 'md';
   const fileSizeBytes = buffer.length;
