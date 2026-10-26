@@ -221,7 +221,9 @@ export class CampusClient {
     }
 
     let contentType = response.headers()['content-type'] || 'application/octet-stream';
-    assertDownloadContentLength(response.headers()['content-length']);
+    if (!contentType.includes('text/html')) {
+      assertDownloadContentLength(response.headers()['content-length']);
+    }
 
     // Si Moodle devolvió HTML en vez de archivo directo (típico de /mod/resource/view.php?id=...)
     if (contentType.includes('text/html')) {
