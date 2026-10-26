@@ -221,13 +221,17 @@ export class CampusClient {
     }
 
     let contentType = response.headers()['content-type'] || 'application/octet-stream';
-    if (!contentType.includes('text/html')) {
-      assertDownloadContentLength(response.headers()['content-length']);
+    const declaredLength = response.headers()['content-length'];
+    if (declaredLength || !contentType.includes('text/html')) {
+      assertDownloadContentLength(declaredLength);
     }
 
     // Si Moodle devolvió HTML en vez de archivo directo (típico de /mod/resource/view.php?id=...)
     if (contentType.includes('text/html')) {
       const html = result.inspectedText ?? await response.text();
+      if (Buffer.byteLength(html, 'utf8') > MAX_FILE_BYTES) {
+        throw new Error('El archivo supera el límite local de 50 MiB para extracción.');
+      }
       this.throwIfSessionExpired(finalUrl, html);
       // Buscar enlace directo a pluginfile en <a>, <iframe>, <embed> o <object>
       const pluginMatch = html.match(/href="([^"]*\/pluginfile\.php\/[^"]+)"/) ||
