@@ -16,10 +16,11 @@ describe('MCP server contract', () => {
       const names = new Set(tools.map(tool => tool.name));
       const byName = new Map(tools.map(tool => [tool.name, tool]));
 
-      expect(names.size).toBe(19);
+      expect(names.size).toBe(24);
       for (const name of [
         'list_courses', 'open', 'read_file', 'get_grades', 'list_forums',
-        'forum_post_topic', 'forum_reply', 'submit_assignment', 'submit_choice'
+        'forum_post_topic', 'forum_reply', 'submit_assignment', 'submit_choice',
+        'get_course_contents', 'get_deadlines', 'get_announcements', 'get_quiz_info', 'download_file'
       ]) {
         expect(names.has(name)).toBe(true);
       }

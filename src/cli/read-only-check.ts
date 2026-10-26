@@ -17,6 +17,10 @@ import {
 } from '../tools/forums.js';
 import { handleListCalendarEvents, handleCalendarAddEvent } from '../tools/calendar.js';
 import { handleGetChoice, handleSubmitChoice } from '../tools/choice.js';
+import { handleGetCourseContents } from '../tools/get-course-contents.js';
+import { handleGetDeadlines } from '../tools/get-deadlines.js';
+import { handleGetAnnouncements } from '../tools/get-announcements.js';
+import { handleGetQuizInfo } from '../tools/get-quiz-info.js';
 
 export interface ReadOnlyCheckResult {
   tool: string;
@@ -58,13 +62,16 @@ export async function runReadOnlyCampusChecks(): Promise<ReadOnlyCheckResult[]> 
         await check('read_file', () => handleReadFile({ url: file.url, page_size: 1024 }));
       }
 
+      await check('get_course_contents', () => handleGetCourseContents({ course_id: course.id }));
+      await check('get_quiz_info', () => handleGetQuizInfo({ course_id: course.id }));
+      await check('get_announcements', () => handleGetAnnouncements({ course_id: course.id, limit: 3 }));
       await check('get_grades', () => handleGetGrades(course.id));
       await check('list_participants', () => handleListParticipants(course.id, 'all'));
       const forums = await check('list_forums', () => handleListForums(course.id));
       const forum = forums?.forums[0];
       if (forum) {
         const discussions = await check('get_forum_discussions', () =>
-          handleGetForumDiscussions(forum.id)
+          handleGetForumDiscussions(forum.url)
         );
         const discussion = discussions?.discussions[0];
         if (discussion) {
@@ -93,6 +100,7 @@ export async function runReadOnlyCampusChecks(): Promise<ReadOnlyCheckResult[]> 
       }
     }
 
+    await check('get_deadlines', () => handleGetDeadlines({ course_id: courses[0]?.id, days_ahead: 30 }));
     await check('list_calendar_events', () => handleListCalendarEvents(30));
     const futureDate = new Date(Date.now() + 86400000).toISOString();
     await check('calendar_add_event preview', () => handleCalendarAddEvent({
@@ -107,7 +115,7 @@ export async function runReadOnlyCampusChecks(): Promise<ReadOnlyCheckResult[]> 
     }));
 
     for (const tool of [
-      'open', 'list_assignments', 'get_assignment',
+      'open', 'list_assignments', 'get_assignment', 'get_course_contents', 'get_quiz_info', 'get_announcements',
       'list_resources', 'read_file', 'get_grades', 'list_participants', 'list_forums',
       'get_forum_discussions', 'get_discussion_posts', 'forum_post_topic preview',
       'forum_reply preview', 'get_choice', 'submit_choice preview', 'calendar_add_event preview'

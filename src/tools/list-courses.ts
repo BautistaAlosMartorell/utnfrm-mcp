@@ -3,8 +3,9 @@ import { hasExplicitEmptyCoursesMessage, parseCourses } from '../parsers/courses
 import { Course } from '../types/index.js';
 import { PATHS } from '../config.js';
 import { rethrowTerminalCampusFailure } from '../client/campus-error-kind.js';
+import { matchCourses } from './course-match.js';
 
-export async function handleListCourses(): Promise<{ courses: Course[]; count: number }> {
+export async function handleListCourses(query?: string): Promise<{ courses: Course[]; count: number; query?: string }> {
   // Intentar primero lectura directa HTTP de /my/courses.php
   let html = '';
   let lastReadError: unknown;
@@ -48,6 +49,12 @@ export async function handleListCourses(): Promise<{ courses: Course[]; count: n
   if (courses.length === 0 && lastReadError) throw lastReadError;
   if (courses.length === 0 && !hasExplicitEmptyCoursesMessage(html)) {
     throw new Error('Moodle no confirmó una lista vacía de materias y no se pudieron reconocer cursos en la página. Revisá el estado del Campus antes de interpretar el resultado.');
+  }
+
+  const trimmed = query?.trim();
+  if (trimmed) {
+    const filtered = matchCourses(courses, trimmed);
+    return { courses: filtered, count: filtered.length, query: trimmed };
   }
 
   return {

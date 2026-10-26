@@ -11,6 +11,7 @@ import { loginInteractive } from './session/auth.js';
 import { SessionStore } from './session/session-store.js';
 import { handleWhoami } from './tools/whoami.js';
 import { approveAssignmentInConsole } from './cli/assignment-approval.js';
+import { debugErrorDetails, describeCliError } from './client/friendly-errors.js';
 
 function registerInClient(label: string, binary: string, args: string[]): void {
   const quoted = args.map(arg => /[\s"]/.test(arg) ? '"' + arg + '"' : arg);
@@ -155,7 +156,8 @@ async function main(): Promise<void> {
     case 'install-browser': {
       const playwrightEntry = fileURLToPath(import.meta.resolve('playwright'));
       const playwrightCli = path.join(path.dirname(playwrightEntry), 'cli.js');
-      const browserArgs = process.platform === 'linux'
+      // Las dependencias del sistema piden sudo; solo se instalan si se pide con --with-deps.
+      const browserArgs = process.argv.includes('--with-deps')
         ? ['install', '--with-deps', 'chromium']
         : ['install', 'chromium'];
       const result = spawnSync(process.execPath, [playwrightCli, ...browserArgs], { stdio: 'inherit' });
@@ -195,13 +197,15 @@ async function main(): Promise<void> {
       console.log('  utn-mcp-mendoza setup-codex Registra el MCP en Codex (--print solo imprime el comando)');
       console.log('  utn-mcp-mendoza setup-claude Registra el MCP en Claude Code (--print solo imprime el comando)');
       console.log('  utn-mcp-mendoza setup-opencode Registra el MCP en OpenCode (--print solo imprime el comando)');
-      console.log('  utn-mcp-mendoza install-browser Instala Chromium compatible con esta versión');
+      console.log('  utn-mcp-mendoza install-browser Instala Chromium compatible con esta versión (--with-deps agrega dependencias del sistema en Linux, requiere sudo)');
       console.log('  utn-mcp-mendoza test        Comprueba lecturas sin guardar contenido ni ejecutar escrituras');
     }
   }
 }
 
-main().catch(() => {
-  console.error('No se pudo completar el comando. Revisá la sesión y los permisos del Campus.');
+main().catch((error: unknown) => {
+  console.error(describeCliError(error));
+  const details = debugErrorDetails(error);
+  if (details) console.error('\n[UTN_MCP_DEBUG]\n' + details);
   process.exitCode = 1;
 });

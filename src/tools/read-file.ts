@@ -9,6 +9,7 @@ export interface ReadFileInput {
   offset?: number;
   ocr?: boolean;
   format?: 'markdown' | 'text' | 'raw';
+  full?: boolean;
 }
 
 export async function handleReadFile(input: ReadFileInput): Promise<ExtractedFileContent> {
@@ -24,7 +25,8 @@ export async function handleReadFile(input: ReadFileInput): Promise<ExtractedFil
       pageSize: input.page_size,
       offset: input.offset,
       ocr: input.ocr,
-      format: input.format
+      format: input.format,
+      full: input.full
     }
   );
 }

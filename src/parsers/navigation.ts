@@ -5,6 +5,8 @@ import { CAMPUS_ORIGIN } from '../config.js';
 import { parseAssignmentDetail } from './assignments.js';
 import { parseForumDiscussions, parseDiscussionPosts } from './forums.js';
 import { parseChoiceDetail } from './choice.js';
+import { parseQuizView } from './quiz.js';
+import { findPluginfileCandidates } from '../client/campus-links.js';
 
 const turndown = new TurndownService({
   headingStyle: 'atx',
@@ -201,6 +203,52 @@ export function parseNavigationPage(html: string, url: string): NavigationResult
         url: new URL(pluginLink, CAMPUS_ORIGIN).href,
         detail: 'Archivo directo descargable'
       }] : []
+    };
+  }
+
+  // E2. Carpeta (/mod/folder/view.php): lista sus archivos para poder leerlos de a uno con read_file
+  if (pathname.includes('/mod/folder/view.php')) {
+    const files = findPluginfileCandidates(html, targetUrl).filter(file => /\/mod_folder\/content\//i.test(file.url));
+    return {
+      kind: 'folder',
+      title,
+      parent,
+      breadcrumbs,
+      url: targetUrl,
+      summary: `Carpeta con ${files.length} archivos`,
+      children: files.map((file, index) => ({
+        id: String(index + 1),
+        name: file.name,
+        type: 'resource',
+        url: file.url,
+        detail: 'Archivo de la carpeta'
+      }))
+    };
+  }
+
+  // E3. Cuestionario (/mod/quiz/view.php): reglas, nota e intentos (solo lectura)
+  if (pathname.includes('/mod/quiz/view.php')) {
+    const quiz = parseQuizView(html, targetUrl);
+    const lines = [`# ${quiz.name || title}`];
+    if (quiz.gradingMethod) lines.push(`**Método de calificación:** ${quiz.gradingMethod}`);
+    if (quiz.attemptsAllowed) lines.push(`**Intentos permitidos:** ${quiz.attemptsAllowed}`);
+    if (quiz.timeLimit) lines.push(`**Límite de tiempo:** ${quiz.timeLimit}`);
+    if (quiz.opens) lines.push(`**Abre:** ${quiz.opens}`);
+    if (quiz.closes) lines.push(`**Cierra:** ${quiz.closes}`);
+    if (quiz.bestGrade) lines.push(`**${quiz.bestGrade}**`);
+    for (const attempt of quiz.attempts) {
+      lines.push(`- Intento ${attempt.number ?? '?'}: ${attempt.state ?? ''} · ${attempt.grade ?? 'sin nota'}`);
+    }
+    return {
+      kind: 'quiz',
+      title: quiz.name || title,
+      parent,
+      breadcrumbs,
+      url: targetUrl,
+      summary: `Cuestionario con ${quiz.attempts.length} intentos registrados`,
+      contentMarkdown: lines.join('\n'),
+      children: [],
+      metadata: { ...quiz }
     };
   }
 

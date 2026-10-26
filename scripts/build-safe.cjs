@@ -53,7 +53,7 @@ function verifyStagedServer() {
   if (result.status !== 0) throw new Error(result.stderr || 'La prueba MCP STDIO de la compilación temporal falló.');
   const responses = result.stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
   const tools = responses.find(response => response.id === 2)?.result?.tools;
-  if (!Array.isArray(tools) || tools.length !== 19) throw new Error('La compilación temporal no expuso las 19 herramientas MCP.');
+  if (!Array.isArray(tools) || tools.length !== 24) throw new Error('La compilación temporal no expuso las 24 herramientas MCP.');
   return tools.length;
 }
 

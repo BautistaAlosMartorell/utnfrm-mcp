@@ -2,14 +2,14 @@ import { campusClient } from '../client/campus-client.js';
 import { parseCourseParticipants } from '../parsers/profile.js';
 import { CourseParticipant } from '../types/index.js';
 import { PATHS } from '../config.js';
-import { requireMoodleId } from '../client/moodle-id.js';
+import { resolveCourse } from './course-ref.js';
 
 export async function handleListParticipants(courseId: string, role?: 'student' | 'teacher' | 'all'): Promise<{
   courseId: string;
   participants: CourseParticipant[];
   count: number;
 }> {
-  const cleanCourseId = requireMoodleId(courseId);
+  const cleanCourseId = (await resolveCourse(courseId)).id;
   const html = await campusClient.getHtml(PATHS.participants(cleanCourseId));
   let participants = parseCourseParticipants(html);
 

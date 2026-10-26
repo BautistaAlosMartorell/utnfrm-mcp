@@ -2,12 +2,12 @@ import { campusClient } from '../client/campus-client.js';
 import { parseAssignmentsIndex } from '../parsers/assignments.js';
 import { AssignmentSummary } from '../types/index.js';
 import { PATHS } from '../config.js';
-import { requireMoodleId } from '../client/moodle-id.js';
+import { resolveCourse } from './course-ref.js';
 import { rethrowTerminalCampusFailure } from '../client/campus-error-kind.js';
 
 export async function handleListAssignments(courseId: string): Promise<{ courseId: string; assignments: AssignmentSummary[]; count: number }> {
   // Limpiar el courseId en caso de que hayan pasado una URL completa
-  const cleanId = requireMoodleId(courseId);
+  const cleanId = (await resolveCourse(courseId)).id;
 
   if (!/^\d+$/.test(cleanId)) {
     throw new Error(`ID de materia inválido: "${courseId}". Debe ser un número identificador (ej: 1234).`);

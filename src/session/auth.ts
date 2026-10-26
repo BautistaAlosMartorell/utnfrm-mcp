@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import readline from 'node:readline/promises';
 import { CAMPUS_ORIGIN, PATHS } from '../config.js';
 import { SessionStore } from './session-store.js';
-import { sanitizeCampusErrorMessage } from '../client/error-sanitizer.js';
+import { describeCliError } from '../client/friendly-errors.js';
 
 export async function loginInteractive(): Promise<boolean> {
   console.log('\n======================================================');
@@ -14,9 +14,15 @@ export async function loginInteractive(): Promise<boolean> {
   console.log('3. Una vez que hayas ingresado a tu panel (/my/), este proceso');
   console.log('   guardará automáticamente tu sesión de navegación local.\n');
 
-  const browser = await chromium.launch({
-    headless: false
-  });
+  let browser;
+  try {
+    browser = await chromium.launch({
+      headless: false
+    });
+  } catch (error) {
+    console.error('\n[Error durante el inicio de sesión]:', describeCliError(error));
+    return false;
+  }
 
   const context = await browser.newContext({
     acceptDownloads: false
@@ -73,8 +79,7 @@ export async function loginInteractive(): Promise<boolean> {
     console.log('Ya podés utilizar el servidor MCP con asistentes de IA.\n');
     return true;
   } catch (error) {
-    const message = sanitizeCampusErrorMessage(error instanceof Error ? error.message : 'Error desconocido');
-    console.error('\n[Error durante el inicio de sesión]:', message);
+    console.error('\n[Error durante el inicio de sesión]:', describeCliError(error));
     return false;
   } finally {
     try {

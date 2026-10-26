@@ -7,6 +7,8 @@ import { campusRequestPolicy, isReadOnlyCampusPost } from './campus-request-poli
 import { assertCampusWritesEnabled } from './write-policy.js';
 import { getCampusOperationSignal } from './campus-operation-context.js';
 import { assertDownloadContentLength, MAX_FILE_BYTES } from './download-policy.js';
+import { filenameFromContentDisposition, pickResourceFile } from './campus-links.js';
+import { readCachedDownload, writeCachedDownload } from './file-cache.js';
 
 const MAX_REDIRECTS = 5;
 
@@ -208,6 +210,9 @@ export class CampusClient {
     status: number;
   }> {
     resolveCampusUrl(pathOrUrl);
+    const direct = readCachedDownload(resolveCampusUrl(pathOrUrl));
+    if (direct) return { ...direct, status: 200 };
+
     let result = await this.requestCampus('GET', pathOrUrl);
     let response = result.response;
 
@@ -221,27 +226,34 @@ export class CampusClient {
     }
 
     let contentType = response.headers()['content-type'] || 'application/octet-stream';
-    assertDownloadContentLength(response.headers()['content-length']);
 
-    // Si Moodle devolvió HTML en vez de archivo directo (típico de /mod/resource/view.php?id=...)
+    // Si Moodle devolvió HTML en vez de archivo directo (típico de /mod/resource/view.php?id=...).
+    // El HTML ya se leyó completo (inspectedText), así que su tamaño no hay que verificarlo: Moodle suele
+    // enviarlo sin Content-Length (chunked). La exigencia de tamaño declarado aplica solo al binario.
     if (contentType.includes('text/html')) {
       const html = result.inspectedText ?? await response.text();
       this.throwIfSessionExpired(finalUrl, html);
-      // Buscar enlace directo a pluginfile en <a>, <iframe>, <embed> o <object>
-      const pluginMatch = html.match(/href="([^"]*\/pluginfile\.php\/[^"]+)"/) ||
-                          html.match(/src="([^"]*\/pluginfile\.php\/[^"]+)"/) ||
-                          html.match(/data="([^"]*\/pluginfile\.php\/[^"]+)"/);
+      const picked = pickResourceFile(html, finalUrl);
 
-      if (pluginMatch) {
-        const pluginUrl = resolveCampusUrl(pluginMatch[1].replace(/&amp;/g, '&'), finalUrl);
-        result = await this.requestCampus('GET', pluginUrl);
+      if (picked.ambiguous.length > 0) {
+        const names = picked.ambiguous.map(candidate => candidate.name).filter(Boolean).slice(0, 20).join(', ');
+        throw new Error(
+          `La página es una carpeta con ${picked.ambiguous.length} archivos (${names}). ` +
+          'Usá `open` sobre la carpeta para obtener la URL de cada archivo y leelos de a uno.'
+        );
+      }
+
+      if (picked.url) {
+        const cached = readCachedDownload(picked.url);
+        if (cached) return { ...cached, status: 200 };
+        result = await this.requestCampus('GET', picked.url);
         response = result.response;
         if (response.status() < 200 || response.status() >= 300) {
           throw new Error(`El Campus respondió con HTTP ${response.status()} al descargar el archivo.`);
         }
         finalUrl = resolveCampusUrl(response.url());
         contentType = response.headers()['content-type'] || 'application/octet-stream';
-        assertDownloadContentLength(response.headers()['content-length']);
+        if (!contentType.includes('text/html')) assertDownloadContentLength(response.headers()['content-length']);
       } else {
         // Devolver el buffer HTML si no había pluginfile
         const bodyBuf = Buffer.from(html, 'utf8');
@@ -253,23 +265,17 @@ export class CampusClient {
           status: response.status()
         };
       }
+    } else {
+      assertDownloadContentLength(response.headers()['content-length']);
     }
 
     const buffer = await response.body();
     if (buffer.byteLength > MAX_FILE_BYTES) {
       throw new Error('El archivo supera el límite local de 50 MiB para extracción.');
     }
-    const disposition = response.headers()['content-disposition'] || '';
-    let filename = 'archivo';
 
-    const filenameMatch = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
-    if (filenameMatch) {
-      try {
-        filename = decodeURIComponent(filenameMatch[1]);
-      } catch {
-        filename = filenameMatch[1];
-      }
-    } else {
+    let filename = filenameFromContentDisposition(response.headers()['content-disposition'] || '') || 'archivo';
+    if (filename === 'archivo') {
       try {
         const parsedPath = new URL(finalUrl).pathname;
         const lastSegment = parsedPath.split('/').filter(Boolean).pop();
@@ -281,13 +287,9 @@ export class CampusClient {
       }
     }
 
-    return {
-      buffer,
-      contentType,
-      filename,
-      finalUrl,
-      status: response.status()
-    };
+    const download = { buffer, contentType, filename, finalUrl };
+    writeCachedDownload(finalUrl, download);
+    return { ...download, status: response.status() };
   }
 
   /**
