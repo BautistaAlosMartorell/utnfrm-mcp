@@ -2,20 +2,17 @@ UTN FRM MCP — GUÍA RÁPIDA PARA ESTUDIANTES
 Beta 2.1.0-beta.1 | Windows, Linux y macOS
 
 QUÉ ES
-Conecta Codex con el Campus Virtual de UTN Mendoza para consultar información que tu cuenta ya puede ver.
+Conecta Codex, Claude Code u OpenCode con el Campus Virtual de UTN Mendoza para consultar información que tu cuenta ya puede ver.
 
 IMPORTANTE: es una beta de solo lectura. No puede entregar tareas, escribir en foros, votar ni agregar eventos. Todas las escrituras en Moodle están deshabilitadas.
 
 1. PREPARA TU COMPUTADORA
-Necesitas Node.js 22.13 o posterior y Codex CLI.
+Necesitas Node.js 22.13 o posterior y un cliente de IA con soporte MCP ya instalado: Codex, Claude Code u OpenCode (instálalo con su documentación oficial).
 Node.js: https://nodejs.org/
-Codex CLI: https://help.openai.com/en/articles/11096431
-Si tienes Node.js, puedes instalar Codex CLI con:
-  npm install --global @openai/codex
 
 Abre una terminal nueva y comprueba:
   node --version
-  codex --version
+  codex --version       (o: claude --version / opencode --version)
 
 2. DESCARGA LOS ARCHIVOS
 Abre la Release:
@@ -71,25 +68,36 @@ Se abrirá una ventana del navegador en el Campus. Escribe tu contraseña solame
 
 El MCP no guarda tu contraseña. Si la sesión vence otro día, vuelve a ejecutar “utn-mcp-mendoza login”; no reinstales.
 
-6. CONECTA CODEX
-Ejecuta:
-  utn-mcp-mendoza setup-codex
+6. CONECTA TU CLIENTE
+Ejecuta el comando de tu cliente. Registra el MCP por ti y deja deshabilitadas las entregas:
+  Codex:       utn-mcp-mendoza setup-codex
+  Claude Code: utn-mcp-mendoza setup-claude
+  OpenCode:    utn-mcp-mendoza setup-opencode
 
-Copia el comando completo que aparece (empieza con “codex mcp add”) y ejecútalo en la terminal. Después:
-  codex mcp list
+Comprueba que aparezca “utn-mendoza” y reinicia el cliente:
+  codex mcp list | claude mcp list | opencode mcp list
 
-Comprueba que aparezca “utn-mendoza” y reinicia Codex.
+Si prefieres ver el comando sin ejecutarlo, agrega --print (por ejemplo: utn-mcp-mendoza setup-claude --print).
+Si ya estaba registrado, el cliente lo avisa y no lo reemplaza: quítalo primero (ver “DESINSTALAR”).
+Si el cliente no se encuentra en el PATH, el comando muestra la línea completa para ejecutarla a mano.
 
 7. PRUEBA
-En Codex puedes escribir:
+En tu cliente puedes escribir:
   Lista mis materias y las tareas próximas. Si no hay resultados, dime que la lista está vacía; si hubo un error de acceso, explícame cuál.
 
 También puedes pedir consultar consignas, documentos, calificaciones, foros y calendario. La cuenta debe tener acceso a esos datos.
 
 QUÉ ESTÁ VALIDADO
-La instalación, el arranque MCP, el almacenamiento seguro de una sesión de prueba y Chromium se verifican automáticamente en Windows, Linux y macOS. Windows tiene validación previa. En Linux y macOS todavía falta probar el inicio de sesión y las consultas con cuentas reales; por eso esta beta necesita estudiantes que la prueben.
+La instalación, el arranque MCP, el almacenamiento seguro de una sesión de prueba y Chromium se verifican automáticamente en Windows, Linux y macOS. Windows tiene validación previa. Linux se probó a mano con una cuenta real (inicio de sesión y consultas desde Claude Code y OpenCode). En macOS todavía falta probar el inicio de sesión y las consultas con cuentas reales; por eso esta beta necesita estudiantes que la prueben. El registro con setup-codex y los comandos setup-claude y setup-opencode en Windows y macOS tampoco se probaron a mano todavía.
 
 NO intentes entregar tareas ni escribir en el Campus: todas las escrituras están deshabilitadas.
+
+DESINSTALAR
+  utn-mcp-mendoza logout
+  codex mcp remove utn-mendoza                (si usaste Codex)
+  claude mcp remove utn-mendoza --scope user  (si usaste Claude Code)
+  opencode mcp remove utn-mendoza             (si usaste OpenCode)
+  npm uninstall --global utn-mcp-mendoza
 
 SI ALGO FALLA
 Comparte con quien te dio la beta: sistema operativo y versión, resultado de “node --version”, el paso que estabas haciendo y el mensaje de error.

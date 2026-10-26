@@ -7,6 +7,12 @@ const tempRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'UTN MCP 
 const stagedPackage = path.join(tempRoot, 'package');
 const stagedDist = path.join(tempRoot, 'dist');
 
+// npm >= 12 returns `npm pack --json` as an object keyed by package name instead of an array.
+function firstPackEntry(json) {
+  const parsed = JSON.parse(json);
+  return Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0];
+}
+
 function run(command, args, cwd) {
   const result = spawnSync(command, args, { cwd, encoding: 'utf8', stdio: 'inherit' });
   if (result.error) throw result.error;
@@ -77,7 +83,7 @@ try {
     throw new Error('STDIO MCP read_file schema is missing URL, page, page_size, offset, or OCR options.');
   }
 
-  const codexSetup = spawnSync(process.execPath, [path.join(stagedPackage, 'dist', 'cli.js'), 'setup-codex'], {
+  const codexSetup = spawnSync(process.execPath, [path.join(stagedPackage, 'dist', 'cli.js'), 'setup-codex', '--print'], {
     cwd: stagedPackage,
     encoding: 'utf8',
     timeout: 30000
@@ -87,14 +93,28 @@ try {
     throw new Error(codexSetup.stderr || 'Packaged Codex setup command did not produce a registration command.');
   }
 
+  for (const [command, expected] of [
+    ['setup-claude', 'claude mcp add utn-mendoza --scope user --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node'],
+    ['setup-opencode', 'opencode mcp add --global --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false utn-mendoza -- node']
+  ]) {
+    const setup = spawnSync(process.execPath, [path.join(stagedPackage, 'dist', 'cli.js'), command, '--print'], {
+      cwd: stagedPackage,
+      encoding: 'utf8',
+      timeout: 30000
+    });
+    if (setup.error) throw setup.error;
+    if (setup.status !== 0 || !setup.stdout.includes(expected)) {
+      throw new Error(setup.stderr || 'Packaged ' + command + ' did not produce a registration command.');
+    }
+  }
+
   const packed = spawnSync(process.execPath, [npmCli, 'pack', '--dry-run', '--json', '--cache', path.join(tempRoot, 'npm-cache')], {
     cwd: stagedPackage,
     encoding: 'utf8'
   });
   if (packed.error) throw packed.error;
   if (packed.status !== 0) throw new Error(packed.stderr || 'npm pack --dry-run failed.');
-  const output = JSON.parse(packed.stdout);
-  const files = output[0]?.files || [];
+  const files = firstPackEntry(packed.stdout)?.files || [];
   const fileNames = files.map(file => file.path);
   for (const required of ['dist/index.js', 'dist/cli.js', 'README.md', 'LICENSE']) {
     if (!fileNames.includes(required)) throw new Error('Package is missing ' + required);
@@ -109,7 +129,7 @@ try {
   });
   if (packedTarball.error) throw packedTarball.error;
   if (packedTarball.status !== 0) throw new Error(packedTarball.stderr || 'npm pack failed.');
-  const tarballName = JSON.parse(packedTarball.stdout)[0]?.filename;
+  const tarballName = firstPackEntry(packedTarball.stdout)?.filename;
   if (!tarballName) throw new Error('npm pack did not return a tarball name.');
 
   const installPrefix = path.join(tempRoot, 'global-install');
@@ -144,7 +164,7 @@ try {
   if (browserSmoke.error) throw browserSmoke.error;
   if (browserSmoke.status !== 0) throw new Error(browserSmoke.stderr || 'Packaged Playwright Chromium smoke check failed.');
 
-  const installedCodexSetup = spawnSync(process.execPath, [path.join(installedPackage, 'dist', 'cli.js'), 'setup-codex'], {
+  const installedCodexSetup = spawnSync(process.execPath, [path.join(installedPackage, 'dist', 'cli.js'), 'setup-codex', '--print'], {
     cwd: installPrefix,
     encoding: 'utf8',
     timeout: 10000
@@ -153,7 +173,8 @@ try {
   const installedExecutableForCodex = fs.realpathSync(installedEntrypoint).replace(/\\/g, '/');
   if (installedCodexSetup.status !== 0
     || !installedCodexSetup.stdout.includes('codex mcp add utn-mendoza --env UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false -- node')
-    || !installedCodexSetup.stdout.includes('node "' + installedExecutableForCodex + '"')) {
+    || !(installedCodexSetup.stdout.includes('node ' + installedExecutableForCodex)
+      || installedCodexSetup.stdout.includes('node "' + installedExecutableForCodex + '"'))) {
     throw new Error('Installed package did not print the expected Codex registration command (exit '
       + installedCodexSetup.status + '). stdout: ' + installedCodexSetup.stdout + ' stderr: ' + installedCodexSetup.stderr);
   }
