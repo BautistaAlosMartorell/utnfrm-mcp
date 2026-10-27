@@ -12,6 +12,17 @@ Beta multiplataforma para consultar el Campus Virtual, Autogestión (Sysacad) y 
 
 Comprueba con `node --version` y `codex --version`, `claude --version` u `opencode --version`. Si un comando no se reconoce, cierra y vuelve a abrir la terminal.
 
+## Alternativa: instalar desde npm
+
+Si prefieres no descargar archivos, instala el paquete publicado en npm y salta a **4. Inicia sesión en el Campus**:
+
+```bash
+npm install --global utn-mcp-mendoza@beta
+utn-mcp-mendoza install-browser
+```
+
+En Linux instala antes `libsecret-tools` y `gnome-keyring` (ver el bloque de Ubuntu/Debian del paso 3). Para actualizar más adelante: `npm install --global utn-mcp-mendoza@beta` y luego `utn-mcp-mendoza install-browser`. Si prefieres verificar el instalador con SHA-256, usa la descarga manual de abajo.
+
 ## 1. Descarga la beta
 
 De la [Release v2.1.0-beta.1](https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/tag/v2.1.0-beta.1), sección **Assets**, descarga y guarda juntos en una carpeta `utn-mcp-beta` dentro de Descargas:
