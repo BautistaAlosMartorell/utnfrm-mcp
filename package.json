@@ -16,6 +16,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build-safe.cjs",
+    "prepare": "npm run build",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "login": "node dist/cli.js login",
