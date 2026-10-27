@@ -44,6 +44,13 @@ describe('download_file', () => {
     expect(path.dirname(second.path)).toBe(dir);
   });
 
+  it('treats an empty or unexpanded extension setting as not configured', () => {
+    for (const value of ['', '${user_config.download_dir}']) {
+      process.env.UTN_MCP_DOWNLOAD_DIR = value;
+      expect(downloadDirectory()).toMatch(/Downloads[\\/]utn-mcp$/);
+    }
+  });
+
   it('requires an absolute download directory', () => {
     process.env.UTN_MCP_DOWNLOAD_DIR = 'relative/dir';
     expect(() => downloadDirectory()).toThrow(/ruta absoluta/);

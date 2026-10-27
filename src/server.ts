@@ -24,11 +24,18 @@ import { handleListCalendarEvents, handleCalendarAddEvent } from './tools/calend
 import { handleGetChoice, handleSubmitChoice } from './tools/choice.js';
 import { handleSubmitAssignment } from './tools/submit-assignment.js';
 import { handleGetCourseContents } from './tools/get-course-contents.js';
+import { handleSetActiveCourses } from './tools/active-courses.js';
+import { registerPrompts } from './prompts.js';
+import { handleGetPdfPageImage } from './tools/get-pdf-page-image.js';
+import { handleReadExternal } from './tools/read-external.js';
+import { handleStudyPack } from './tools/study-pack.js';
 import { handleGetDeadlines } from './tools/get-deadlines.js';
 import { handleGetAnnouncements } from './tools/get-announcements.js';
 import { handleGetQuizInfo } from './tools/get-quiz-info.js';
 import { handleDownloadFile } from './tools/download-file.js';
+import { getSessionStatus, startBrowserInstall, startLogin } from './session/session-status.js';
 import { sanitizeCampusErrorMessage } from './client/error-sanitizer.js';
+import { withSessionHint } from './client/friendly-errors.js';
 import { withCampusOperationSignal } from './client/campus-operation-context.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -59,7 +66,14 @@ import {
   GetDeadlinesInputSchema,
   GetAnnouncementsInputSchema,
   GetQuizInfoInputSchema,
-  DownloadFileInputSchema
+  DownloadFileInputSchema,
+  SessionStatusInputSchema,
+  StartLoginInputSchema,
+  InstallBrowserInputSchema,
+  SetActiveCoursesInputSchema,
+  GetPdfPageImageInputSchema,
+  ReadExternalInputSchema,
+  StudyPackInputSchema
 } from './types/index.js';
 
 /** La versión que informa el servidor sale del package.json, para que no se desfase del paquete. */
@@ -87,7 +101,7 @@ const WRITE_PREVIEW_TOOLS = new Set([
   'submit_choice'
 ]);
 
-const LOCAL_FILE_TOOLS = new Set(['download_file']);
+const LOCAL_FILE_TOOLS = new Set(['download_file', 'start_login', 'install_browser', 'set_active_courses']);
 
 function registerMcpTool<Shape extends ZodRawShapeCompat>(
   name: string,
@@ -143,7 +157,7 @@ function jsonResponse(data: unknown) {
 }
 
 function errorResponse(message: string) {
-  const safeMessage = sanitizeCampusErrorMessage(message);
+  const safeMessage = withSessionHint(sanitizeCampusErrorMessage(message));
   return {
     isError: true,
     structuredContent: {
@@ -172,11 +186,11 @@ function errorResponse(message: string) {
 
 registerMcpTool(
   'list_courses',
-  'Obtiene la lista de materias / cursos en los que está inscripto el estudiante en el Campus Virtual de UTN Mendoza (FRM). Devuelve ID numérico, nombre y URL; query filtra por nombre. En las demás herramientas la materia puede indicarse por nombre en vez de ID.',
+  'Obtiene la lista de materias / cursos en los que está inscripto el estudiante en el Campus Virtual de UTN Mendoza (FRM). Devuelve ID numérico, nombre y URL; query filtra por nombre; si definiste tus materias del cuatrimestre (set_active_courses) cada una indica active y active_only muestra solo esas. En las demás herramientas la materia puede indicarse por nombre en vez de ID.',
   ListCoursesInputSchema.shape,
-  async ({ query }) => {
+  async ({ query, active_only }) => {
     try {
-      const result = await handleListCourses(query);
+      const result = await handleListCourses(query, active_only);
       return jsonResponse(result);
     } catch (error: any) {
       return errorResponse(`Error al obtener materias: ${error.message || String(error)}`);
@@ -263,11 +277,11 @@ registerMcpTool(
 
 registerMcpTool(
   'read_file',
-  'Descarga y extrae texto/tablas de PDF, DOCX, PPTX, XLSX, ODT, ODS, RTF, EPUB y texto. PDFs admiten page, fragmentos con offset y OCR opcional solo con modelos Tesseract locales; por defecto no ejecuta OCR ni descarga modelos. full: true devuelve el documento completo (hasta 150.000 caracteres) sin paginar. Si la URL es una carpeta, usá open para obtener la URL de cada archivo.',
+  'Descarga y extrae texto/tablas de PDF, DOCX, PPTX, XLSX, ODT, ODS, RTF, EPUB y texto. PDFs admiten page, fragmentos con offset y OCR opcional solo con modelos Tesseract locales; por defecto no ejecuta OCR ni descarga modelos. full: true devuelve el documento completo (hasta 150.000 caracteres) sin paginar. En los PDF las tablas se reconstruyen con sus columnas (layout: false lo desactiva). Si la URL es una carpeta, usá open para obtener la URL de cada archivo.',
   ReadFileInputSchema.shape,
-  async ({ url, page, page_size, format, offset, ocr, full }) => {
+  async ({ url, page, page_size, format, offset, ocr, full, layout }) => {
     try {
-      const result = await handleReadFile({ url, page, page_size, format, offset, ocr, full });
+      const result = await handleReadFile({ url, page, page_size, format, offset, ocr, full, layout });
       return jsonResponse(result);
     } catch (error: any) {
       return errorResponse(`Error al leer archivo (${url}): ${error.message || String(error)}`);
@@ -483,11 +497,11 @@ registerMcpTool(
 
 registerMcpTool(
   'get_deadlines',
-  'Próximas entregas de tareas y cierres de cuestionarios, de una materia o de todas, ordenadas por fecha (ISO 8601, zona America/Argentina/Mendoza), con estado de entrega y días restantes. Oculta lo ya entregado salvo include_completed y lo vencido hace más de overdue_days (14). Con muchas materias puede devolver partial: true y la lista de materias pendientes.',
+  'Próximas entregas de tareas y cierres de cuestionarios, de una materia o de todas, ordenadas por fecha (ISO 8601, zona America/Argentina/Mendoza), con estado de entrega y días restantes. Oculta lo ya entregado salvo include_completed y lo vencido hace más de overdue_days (14). Con muchas materias puede devolver partial: true y la lista de materias pendientes. Sin course_id revisa las materias del perfil (set_active_courses) o todas si no hay perfil; all_courses: true fuerza todas.',
   GetDeadlinesInputSchema.shape,
-  async ({ course_id, days_ahead, include_completed, include_overdue, overdue_days }) => {
+  async ({ course_id, days_ahead, include_completed, include_overdue, overdue_days, all_courses }) => {
     try {
-      const result = await handleGetDeadlines({ course_id, days_ahead, include_completed, include_overdue, overdue_days });
+      const result = await handleGetDeadlines({ course_id, days_ahead, include_completed, include_overdue, overdue_days, all_courses });
       return jsonResponse(result);
     } catch (error: any) {
       return errorResponse(`Error al consultar las próximas entregas: ${error.message || String(error)}`);
@@ -497,11 +511,11 @@ registerMcpTool(
 
 registerMcpTool(
   'get_announcements',
-  'Avisos recientes del foro de novedades (Avisos/Novedades) de una materia o de todas, del más nuevo al más viejo, con fecha ISO 8601. since filtra por fecha; include_body agrega el texto de los 5 más nuevos.',
+  'Avisos recientes del foro de novedades (Avisos/Novedades) de una materia o de todas, del más nuevo al más viejo, con fecha ISO 8601. since filtra por fecha; include_body agrega el texto de los 5 más nuevos. Sin course_id usa las materias del perfil (set_active_courses) o todas.',
   GetAnnouncementsInputSchema.shape,
-  async ({ course_id, limit, since, include_body }) => {
+  async ({ course_id, limit, since, include_body, all_courses }) => {
     try {
-      const result = await handleGetAnnouncements({ course_id, limit, since, include_body });
+      const result = await handleGetAnnouncements({ course_id, limit, since, include_body, all_courses });
       return jsonResponse(result);
     } catch (error: any) {
       return errorResponse(`Error al consultar los avisos: ${error.message || String(error)}`);
@@ -536,3 +550,107 @@ registerMcpTool(
     }
   }
 );
+
+// ==========================================
+// 10. Sesión y primeros pasos sin terminal
+// ==========================================
+
+registerMcpTool(
+  'session_status',
+  'Estado de la conexión con el Campus: si la sesión está activa, hace cuánto se guardó (las sesiones suelen vencer a las ~8 h), si el navegador necesario está instalado, si hay un inicio de sesión o una instalación en curso, y el próximo paso en lenguaje claro. Úsalo primero si una consulta falla por sesión vencida.',
+  SessionStatusInputSchema.shape,
+  async () => {
+    try {
+      return jsonResponse(await getSessionStatus());
+    } catch (error: any) {
+      return errorResponse(`Error al consultar el estado de la sesión: ${error.message || String(error)}`);
+    }
+  }
+);
+
+registerMcpTool(
+  'start_login',
+  'Abre en la computadora de la persona una ventana del navegador en la página de acceso del Campus para iniciar o renovar la sesión, y vuelve enseguida. La persona escribe su usuario y contraseña únicamente en esa ventana (el MCP nunca los ve). Después hay que consultar session_status. No hace nada en el Campus.',
+  StartLoginInputSchema.shape,
+  async () => {
+    try {
+      return jsonResponse(startLogin());
+    } catch (error: any) {
+      return errorResponse(`Error al iniciar el acceso al Campus: ${error.message || String(error)}`);
+    }
+  }
+);
+
+registerMcpTool(
+  'install_browser',
+  'Descarga e instala el navegador (Chromium, unos 150 MB) que el MCP usa para el inicio de sesión. Corre en segundo plano; el avance se consulta con session_status. Solo hace falta si session_status indica que falta.',
+  InstallBrowserInputSchema.shape,
+  async () => {
+    try {
+      return jsonResponse(startBrowserInstall());
+    } catch (error: any) {
+      return errorResponse(`Error al instalar el navegador: ${error.message || String(error)}`);
+    }
+  }
+);
+
+registerMcpTool(
+  'set_active_courses',
+  'Guarda (en un archivo local) cuáles son las materias que la persona cursa este cuatrimestre, por nombre o ID, para que get_deadlines y get_announcements revisen solo esas y respondan mucho más rápido. Sin argumentos consulta el perfil actual; clear: true lo borra. No modifica nada en el Campus.',
+  SetActiveCoursesInputSchema.shape,
+  async ({ courses, clear }) => {
+    try {
+      return jsonResponse(await handleSetActiveCourses({ courses, clear }));
+    } catch (error: any) {
+      return errorResponse(`Error al guardar las materias del cuatrimestre: ${error.message || String(error)}`);
+    }
+  }
+);
+
+registerMcpTool(
+  'get_pdf_page_image',
+  'Devuelve una página de un PDF del Campus como imagen PNG, para ver los diagramas, gráficos, fórmulas y diapositivas que read_file no puede capturar como texto. Indicá la página (read_file informa el total de páginas). Es solo lectura y se procesa localmente.',
+  GetPdfPageImageInputSchema.shape,
+  async ({ url, page, scale }) => {
+    try {
+      const { png, meta } = await handleGetPdfPageImage({ url, page, scale });
+      return {
+        structuredContent: meta as unknown as Record<string, unknown>,
+        content: [
+          { type: 'image' as const, data: png.toString('base64'), mimeType: 'image/png' },
+          { type: 'text' as const, text: JSON.stringify(meta) }
+        ]
+      };
+    } catch (error: any) {
+      return errorResponse(`Error al dibujar la página del PDF (${url}): ${error.message || String(error)}`);
+    }
+  }
+);
+
+registerMcpTool(
+  'read_external',
+  'Lee contenido externo público que la cátedra enlaza: notebooks (.ipynb, también de Colab alojados en GitHub), archivos y README de GitHub, y Gist, convertidos a Markdown. Acepta la URL externa o el módulo "URL" del Campus que apunta a ella (los enlaces aparecen como external_url en get_course_contents). Solo contacta sitios permitidos (GitHub y Colab-GitHub por defecto; más sitios con la variable UTN_MCP_EXTERNAL_ALLOW), sin cookies ni datos del Campus.',
+  ReadExternalInputSchema.shape,
+  async ({ url }) => {
+    try {
+      return jsonResponse(await handleReadExternal({ url }));
+    } catch (error: any) {
+      return errorResponse(`Error al leer el enlace externo (${url}): ${error.message || String(error)}`);
+    }
+  }
+);
+
+registerMcpTool(
+  'study_pack',
+  'Junta en una sola respuesta todo el material de una unidad de una materia para estudiar o resumir: lee cada archivo (PDF con sus tablas, Word, PowerPoint…), carpeta, página y enlace externo permitido; devuelve el texto de cada fuente, un índice de temas con su página ("outline", para citar y verificar la cobertura) y el estado de lectura (qué se leyó completo y qué no). include_content: false devuelve solo el índice. Con unidades grandes puede devolver partial: true.',
+  StudyPackInputSchema.shape,
+  async ({ course_id, unit, include_content, include_external, max_chars_per_source, max_total_chars }) => {
+    try {
+      return jsonResponse(await handleStudyPack({ course_id, unit, include_content, include_external, max_chars_per_source, max_total_chars }));
+    } catch (error: any) {
+      return errorResponse(`Error al armar el material de la unidad ${unit} de ${course_id}: ${error.message || String(error)}`);
+    }
+  }
+);
+
+registerPrompts(server);

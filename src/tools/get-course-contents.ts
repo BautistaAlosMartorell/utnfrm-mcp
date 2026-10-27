@@ -27,10 +27,20 @@ function sectionPath(courseId: string, number: number): string {
   return `${PATHS.courseView(courseId)}&section=${number}`;
 }
 
-function selectSections(sections: CourseSectionContent[], selector: string): CourseSectionContent[] {
+const UNIT_WORDS = '(?:unidad|unit|tema|m[oó]dulo|clase|semana|bloque|cap[ií]tulo)';
+
+/**
+ * Elige secciones por número o por nombre. Un número suelto ("4") se interpreta primero como "Unidad 4"
+ * (o Tema/Módulo/Semana 4) por el nombre de la sección, porque el número interno de Moodle casi nunca
+ * coincide con el de la unidad (la sección 0 es "General"); si no hay un nombre así, se usa el número interno.
+ */
+export function selectSections(sections: CourseSectionContent[], selector: string): CourseSectionContent[] {
   const wanted = selector.trim();
   if (/^\d{1,4}$/.test(wanted)) {
-    const byNumber = sections.filter(section => section.number === Number(wanted));
+    const asked = Number(wanted);
+    const named = sections.filter(section => new RegExp(`\\b${UNIT_WORDS}\\s*0*${asked}(?!\\d)`, 'i').test(normalizeText(section.name)));
+    if (named.length > 0) return named;
+    const byNumber = sections.filter(section => section.number === asked);
     if (byNumber.length > 0) return byNumber;
   }
   const normalized = normalizeText(wanted);

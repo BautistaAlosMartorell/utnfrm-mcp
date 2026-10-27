@@ -37,7 +37,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
     "verify": "npm run lint && npm run typecheck && npm test",
-    "prepublishOnly": "npm run verify && npm run build"
+    "prepublishOnly": "npm run verify && npm run build",
+    "package:mcpb": "node scripts/build-mcpb.cjs"
   },
   "keywords": [
     "mcp",
@@ -59,6 +60,7 @@
     "cheerio": "^1.0.0",
     "just-secrets": "0.0.2",
     "officeparser": "^8.2.0",
+    "pdfjs-dist": "6.2.108",
     "playwright": "^1.50.0",
     "turndown": "^7.2.0",
     "zod": "^4.6.7"

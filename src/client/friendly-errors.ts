@@ -27,6 +27,14 @@ export function describeCliError(error: unknown): string {
   return sanitizeCampusErrorMessage(raw) || GENERIC;
 }
 
+const SESSION_PROBLEM = /sesi[oó]n.*(?:expir|venc|inv[aá]lida)|expir[oó]|autenticaci[oó]n|permisos insuficientes|no se encontr[oó] una sesi[oó]n|\b401\b/i;
+const SESSION_HINT = ' Usá session_status para ver el estado de la sesión y start_login para renovarla.';
+
+/** Si el error es de sesión, agrega qué herramienta usar para resolverlo (sirve a quien no usa terminal). */
+export function withSessionHint(message: string): string {
+  return SESSION_PROBLEM.test(message) && !message.includes('session_status') ? message + SESSION_HINT : message;
+}
+
 /** Detalle técnico (pila de llamadas) solo con UTN_MCP_DEBUG=1; siempre sanitizado línea por línea. */
 export function debugErrorDetails(error: unknown): string | undefined {
   if (process.env.UTN_MCP_DEBUG !== '1') return undefined;

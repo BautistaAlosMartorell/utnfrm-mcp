@@ -1,6 +1,7 @@
 import * as officeParser from 'officeparser';
 import { ExtractedFileContent } from '../types/index.js';
 import { resolveLocalOcrConfig } from './local-ocr-config.js';
+import { extractPdfLayout } from './pdf-layout.js';
 
 export interface FileExtractionOptions {
   page?: number;
@@ -10,6 +11,8 @@ export interface FileExtractionOptions {
   format?: 'markdown' | 'text' | 'raw';
   /** Permite un fragmento grande (hasta 150.000 caracteres) para leer un documento completo en una sola respuesta. */
   full?: boolean;
+  /** PDF: reconstruye las tablas con sus columnas (Markdown) en vez de texto lineal. Se ignora con OCR. */
+  layout?: boolean;
 }
 
 type PdfPage = { text?: string; metadata?: { pageNumber?: number } };
@@ -138,6 +141,17 @@ export async function extractFileContent(
         totalPages = res?.metadata?.pages || (pages.length > 0 ? pages.length : 1);
         ocrPageLimitReached = ocrPerformed && !options.page && typeof totalPages === 'number' && totalPages > MAX_OCR_PAGES_PER_REQUEST;
         if (ocrPageLimitReached) extractionWarnings.push(`El OCR se limitó a las primeras ${MAX_OCR_PAGES_PER_REQUEST} páginas por solicitud; usa page para continuar con páginas posteriores.`);
+        if (options.layout && !ocrPerformed) {
+          try {
+            const laidOut = await extractPdfLayout(buffer, { page: options.page });
+            pages.forEach((page, index) => {
+              const text = laidOut.pages.get(page.metadata?.pageNumber ?? index + 1);
+              if (text?.trim()) page.text = text;
+            });
+          } catch {
+            extractionWarnings.push('No se pudo conservar el diseño de las tablas; se usó la extracción de texto lineal.');
+          }
+        }
         missingPdfTextPages = pages.some(page => !page.text?.trim());
         if (ocrPerformed) {
           const generated = await res.to('text', { includeImages: 'ocr-text-only', textConfig: { pageSeparator: '\f' } });

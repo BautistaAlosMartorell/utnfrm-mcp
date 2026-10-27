@@ -1,8 +1,5 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { ROOT_DIR } from './config.js';
 import { campusClient } from './client/campus-client.js';
 import { runReadOnlyCampusChecks } from './cli/read-only-check.js';
@@ -12,30 +9,57 @@ import { SessionStore } from './session/session-store.js';
 import { handleWhoami } from './tools/whoami.js';
 import { approveAssignmentInConsole } from './cli/assignment-approval.js';
 import { debugErrorDetails, describeCliError } from './client/friendly-errors.js';
+import readline from 'node:readline/promises';
+import { registerClient, type ClientId } from './cli/clients.js';
+import { doctorExitCode, formatDoctor, runDoctor } from './cli/doctor.js';
+import { installChromium } from './cli/install-browser.js';
+import { defaultWizardDeps, runWizard, type WizardIO } from './cli/wizard.js';
+import { handleListCourses } from './tools/list-courses.js';
+import { describeSessionAge } from './session/session-status.js';
+import { buildDigest, notify, scheduleHelp } from './cli/digest.js';
 
-function registerInClient(label: string, binary: string, args: string[]): void {
-  const quoted = args.map(arg => /[\s"]/.test(arg) ? '"' + arg + '"' : arg);
-  const printed = binary + ' ' + quoted.join(' ');
-  if (process.argv.includes('--print')) {
-    console.log(printed);
+function registerInClient(label: string, id: ClientId): void {
+  const printOnly = process.argv.includes('--print');
+  const result = registerClient(id, { printOnly });
+  if (printOnly) {
+    console.log(result.line);
     return;
   }
-  console.log('Registrando UTN MCP Mendoza en ' + label + ': ' + printed);
-  // En Windows los clientes son .cmd y spawn exige shell; los argumentos ya van entrecomillados.
-  const windows = process.platform === 'win32';
-  const result = windows
-    ? spawnSync(binary + ' ' + quoted.join(' '), { stdio: 'inherit', shell: true })
-    : spawnSync(binary, args, { stdio: 'inherit' });
-  if (result.error) {
-    console.error('No se pudo ejecutar "' + binary + '". Instalalo o ejecutá a mano: ' + printed);
+  console.log('Registrando UTN MCP Mendoza en ' + label + ': ' + result.line);
+  if (!result.ok) {
+    console.error(result.message ?? 'No se pudo registrar el servidor.');
     process.exitCode = 1;
     return;
   }
-  if (result.status !== 0) {
-    process.exitCode = result.status ?? 1;
-    return;
-  }
-  console.log('Listo. Verificá con: ' + binary + ' mcp list y reiniciá ' + label + '.');
+  console.log('Listo. Verificá con el comando "mcp list" de tu cliente y reiniciá ' + label + '.');
+}
+
+function consoleWizardIO(): WizardIO {
+  return {
+    say: message => console.log(message ?? ''),
+    pick: async (question, items) => {
+      items.forEach((item, index) => console.log(`  ${index + 1}. ${item}`));
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      try {
+        const answer = (await rl.question(`${question} Escribí los números separados por coma (Enter = todas): `)).trim();
+        if (!answer) return undefined;
+        const numbers = [...new Set(answer.split(/[\s,;]+/).map(part => Number.parseInt(part, 10)).filter(value => Number.isInteger(value) && value >= 1 && value <= items.length))];
+        return numbers.length > 0 ? numbers.map(value => value - 1) : undefined;
+      } finally {
+        rl.close();
+      }
+    },
+    confirm: async (question, defaultYes) => {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      try {
+        const answer = (await rl.question(`${question} ${defaultYes ? '[S/n]' : '[s/N]'} `)).trim().toLowerCase();
+        if (!answer) return defaultYes;
+        return ['s', 'si', 'sí', 'y', 'yes'].includes(answer);
+      } finally {
+        rl.close();
+      }
+    }
+  };
 }
 
 async function main(): Promise<void> {
@@ -80,6 +104,8 @@ async function main(): Promise<void> {
         const check = await campusClient.validateSession();
         if (check.valid) {
           console.log('Estado en Campus Virtual: SESIÓN ACTIVA');
+          const age = describeSessionAge(SessionStore.savedAt());
+          if (age.level !== 'none') console.log('Sesión ' + age.text + '.');
         } else {
           console.log('Estado en Campus Virtual: EXPIRADA O INVÁLIDA');
           console.log('La sesión local se conservó. Ejecutá utn-mcp-mendoza login para renovarla.');
@@ -130,39 +156,85 @@ async function main(): Promise<void> {
       return;
     }
     case 'setup-codex': {
-      registerInClient('Codex', 'codex', [
-        'mcp', 'add', 'utn-mendoza',
-        '--env', 'UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false',
-        '--', 'node', ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js'
-      ]);
+      registerInClient('Codex', 'codex');
       return;
     }
     case 'setup-claude': {
-      registerInClient('Claude Code', 'claude', [
-        'mcp', 'add', 'utn-mendoza', '--scope', 'user',
-        '--env', 'UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false',
-        '--', 'node', ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js'
-      ]);
+      registerInClient('Claude Code', 'claude');
       return;
     }
     case 'setup-opencode': {
-      registerInClient('OpenCode', 'opencode', [
-        'mcp', 'add', '--global',
-        '--env', 'UTN_MCP_ASSIGNMENT_SUBMISSIONS_ENABLED=false',
-        'utn-mendoza', '--', 'node', ROOT_DIR.replace(/\\/g, '/') + '/dist/index.js'
-      ]);
+      registerInClient('OpenCode', 'opencode');
       return;
     }
     case 'install-browser': {
-      const playwrightEntry = fileURLToPath(import.meta.resolve('playwright'));
-      const playwrightCli = path.join(path.dirname(playwrightEntry), 'cli.js');
       // Las dependencias del sistema piden sudo; solo se instalan si se pide con --with-deps.
-      const browserArgs = process.argv.includes('--with-deps')
-        ? ['install', '--with-deps', 'chromium']
-        : ['install', 'chromium'];
-      const result = spawnSync(process.execPath, [playwrightCli, ...browserArgs], { stdio: 'inherit' });
-      if (result.error) throw result.error;
-      if (result.status !== 0) process.exitCode = result.status ?? 1;
+      const status = installChromium({ withDeps: process.argv.includes('--with-deps') });
+      if (status !== 0) process.exitCode = status;
+      return;
+    }
+    case 'doctor': {
+      try {
+        const checks = await runDoctor({ offline: process.argv.includes('--offline') });
+        console.log(formatDoctor(checks));
+        process.exitCode = doctorExitCode(checks);
+      } finally {
+        await campusClient.close();
+      }
+      return;
+    }
+    case 'digest': {
+      if (process.argv.includes('--schedule-help')) {
+        console.log(scheduleHelp());
+        return;
+      }
+      const daysArg = process.argv.find(arg => arg.startsWith('--days='));
+      const days = daysArg ? Number.parseInt(daysArg.split('=')[1], 10) : 7;
+      if (!Number.isInteger(days) || days < 1 || days > 60) {
+        console.error('--days debe ser un número entre 1 y 60.');
+        process.exitCode = 1;
+        return;
+      }
+      try {
+        const digest = await buildDigest({ days, allCourses: process.argv.includes('--all-courses') });
+        if (process.argv.includes('--json')) console.log(JSON.stringify(digest.data, null, 2));
+        else console.log(digest.text);
+        if (process.argv.includes('--notify') && !notify(digest.title, digest.summary)) {
+          console.error('No se pudo mostrar la notificación del sistema (se necesita notify-send en Linux u osascript en macOS).');
+        }
+      } catch (error) {
+        const message = describeCliError(error);
+        console.error(message);
+        if (process.argv.includes('--notify')) notify('UTN: no se pudo armar el resumen', /expir|sesi[oó]n/i.test(message) ? 'La sesión del Campus venció: ejecutá utn-mcp-mendoza login' : message);
+        process.exitCode = 1;
+      } finally {
+        await campusClient.close();
+      }
+      return;
+    }
+    case 'setup-wizard':
+    case 'init': {
+      const yes = process.argv.includes('--yes');
+      if (!yes && !process.stdin.isTTY) {
+        console.error('El asistente hace preguntas: ejecutalo en una terminal interactiva, o agregá --yes para aceptar las opciones por defecto.');
+        process.exitCode = 1;
+        return;
+      }
+      try {
+        const deps = defaultWizardDeps({
+          installBrowser: () => installChromium(),
+          login: () => loginInteractive(),
+          listCourses: async () => (await handleListCourses()).courses
+        });
+        const result = await runWizard({
+          yes,
+          skipLogin: process.argv.includes('--no-login'),
+          skipRegister: process.argv.includes('--no-register')
+        }, consoleWizardIO(), deps);
+        if (!result.ok) process.exitCode = 1;
+      } finally {
+        await campusClient.close();
+      }
       return;
     }
     case 'test': {
@@ -188,6 +260,9 @@ async function main(): Promise<void> {
     default: {
       console.log('UTN MCP Mendoza');
       console.log('  utn-mcp-mendoza             Inicia el servidor MCP sobre stdio');
+      console.log('  utn-mcp-mendoza setup-wizard Asistente guiado: revisa tu equipo, inicia sesión y conecta tu cliente (alias: init)');
+      console.log('  utn-mcp-mendoza doctor      Diagnóstico en una pantalla, con qué hacer en cada punto (--offline no consulta al Campus)');
+      console.log('  utn-mcp-mendoza digest      Resumen de lo que vence y los avisos nuevos (--days=7, --notify, --json, --all-courses, --schedule-help)');
       console.log('  utn-mcp-mendoza login       Abre el navegador para autenticarte');
       console.log('  utn-mcp-mendoza approve-assignment <id> Revisa y aprueba una entrega desde una terminal local');
       console.log('  utn-mcp-mendoza logout      Elimina la sesión local');

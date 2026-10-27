@@ -3,8 +3,9 @@ import { rethrowTerminalCampusFailure } from '../client/campus-error-kind.js';
 import { PATHS } from '../config.js';
 import { parseCourseSections } from '../parsers/course-contents.js';
 import { parseDiscussionPosts, parseForumDiscussions } from '../parsers/forums.js';
-import type { Course, DiscussionItem } from '../types/index.js';
-import { listCoursesCached, resolveCourse } from './course-ref.js';
+import type { DiscussionItem } from '../types/index.js';
+import { resolveCourse } from './course-ref.js';
+import { scopeCourses } from './active-courses.js';
 
 const TIME_BUDGET_MS = 45_000;
 const NEWS_FORUM_NAME = /^(avisos?|novedades|anuncios?|noticias|news|announcements?)\b/i;
@@ -15,6 +16,7 @@ export interface AnnouncementsInput {
   limit?: number;
   since?: string;
   include_body?: boolean;
+  all_courses?: boolean;
 }
 
 export interface Announcement extends Pick<DiscussionItem, 'id' | 'title' | 'author' | 'repliesCount' | 'url'> {
@@ -26,6 +28,7 @@ export interface Announcement extends Pick<DiscussionItem, 'id' | 'title' | 'aut
 }
 
 export interface AnnouncementsResult {
+  scope: 'perfil' | 'todas' | 'materia';
   announcements: Announcement[];
   count: number;
   coursesScanned: number;
@@ -56,10 +59,17 @@ export async function handleGetAnnouncements(input: AnnouncementsInput = {}): Pr
   const since = parseSince(input.since);
 
   let courses: Array<{ id: string; name?: string }>;
-  if (input.course_id) courses = [await resolveCourse(input.course_id)];
-  else courses = (await listCoursesCached()).map((course: Course) => ({ id: course.id, name: course.name }));
-
+  let scope: AnnouncementsResult['scope'] = 'materia';
   const warnings: string[] = [];
+  if (input.course_id) {
+    courses = [await resolveCourse(input.course_id)];
+  } else {
+    const scoped = await scopeCourses(input.all_courses);
+    courses = scoped.courses;
+    scope = scoped.scope;
+    if (scoped.warning) warnings.push(scoped.warning);
+  }
+
   const without: string[] = [];
   const all: Announcement[] = [];
   const started = Date.now();
@@ -113,6 +123,7 @@ export async function handleGetAnnouncements(input: AnnouncementsInput = {}): Pr
   }
 
   return {
+    scope,
     announcements,
     count: announcements.length,
     coursesScanned: scanned,

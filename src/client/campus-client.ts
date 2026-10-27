@@ -1,3 +1,4 @@
+import * as cheerio from 'cheerio';
 import { request, APIRequestContext, APIResponse, chromium, Browser, BrowserContext } from 'playwright';
 import { CAMPUS_ORIGIN, DEFAULT_TIMEOUT_MS, PATHS } from '../config.js';
 import { SessionStore } from '../session/session-store.js';
@@ -11,6 +12,29 @@ import { filenameFromContentDisposition, pickResourceFile } from './campus-links
 import { readCachedDownload, writeCachedDownload } from './file-cache.js';
 
 const MAX_REDIRECTS = 5;
+
+/** Enlace externo (fuera del Campus) de una página de módulo URL: el cuerpo de la actividad o su iframe. */
+export function extractExternalLink(html: string): string | undefined {
+  const $ = cheerio.load(html);
+  const candidates = [
+    $('.urlworkaround a').first().attr('href'),
+    $('[role="main"] iframe[src^="http"]').first().attr('src'),
+    $('meta[http-equiv="refresh"]').first().attr('content')?.match(/url=(.+)$/i)?.[1],
+    $('[role="main"] a[href^="http"]').filter((_, el) => {
+      try { return new URL($(el).attr('href') || '').origin !== CAMPUS_ORIGIN; } catch { return false; }
+    }).first().attr('href')
+  ];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const url = new URL(candidate.trim());
+      if ((url.protocol === 'https:' || url.protocol === 'http:') && url.origin !== CAMPUS_ORIGIN) return url.href;
+    } catch {
+      // siguiente candidato
+    }
+  }
+  return undefined;
+}
 
 type CampusResponse = { response: APIResponse; inspectedText?: string };
 
@@ -40,7 +64,7 @@ export class CampusClient {
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
       if (isCampusLoginUrl(target)) {
         campusRequestPolicy.block('authentication');
-        throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con npm run login.');
+        throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con utn-mcp-mendoza login.');
       }
       let result: CampusResponse;
       const signal = getCampusOperationSignal();
@@ -68,7 +92,7 @@ export class CampusClient {
             const finalUrl = resolveCampusUrl(response.url());
             if (isCampusLoginUrl(finalUrl)) {
               campusRequestPolicy.block('authentication');
-              throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con npm run login.');
+              throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con utn-mcp-mendoza login.');
             }
             let inspectedText: string | undefined;
             if ((response.headers()['content-type'] || '').includes('text/html')) {
@@ -125,7 +149,7 @@ export class CampusClient {
     if (isCampusLoginUrl(finalUrl) || (responseText?.includes('id="login"') &&
       responseText.includes('name="password"') && !responseText.includes('class="userbutton"'))) {
       campusRequestPolicy.block('authentication');
-      throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con npm run login.');
+      throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con utn-mcp-mendoza login.');
     }
     if (responseText && /cf-chl-|captcha-container|g-recaptcha|security challenge|temporarily blocked|unusual traffic/i.test(responseText.slice(0, 12000))) {
       campusRequestPolicy.block('security-challenge');
@@ -140,7 +164,7 @@ export class CampusClient {
     if (!SessionStore.exists()) {
       throw new Error(
         'No se encontró una sesión activa para el Campus Virtual UTN Mendoza.\n' +
-        'Por favor ejecutá `npm run login` en la terminal para iniciar sesión de forma segura.'
+        'Ejecutá `utn-mcp-mendoza login` en la terminal para iniciar sesión de forma segura (o `utn-mcp-mendoza setup-wizard` para que te guíe paso a paso).'
       );
     }
 
@@ -169,7 +193,7 @@ export class CampusClient {
     const response = result.response;
 
     if (response.status() === 401 || response.status() === 403) {
-      throw new Error('Sesión expirada o permisos insuficientes. Ejecutá `npm run login`.');
+      throw new Error('Sesión expirada o permisos insuficientes. Ejecutá `utn-mcp-mendoza login`.');
     }
 
     const finalUrl = resolveCampusUrl(response.url());
@@ -194,7 +218,7 @@ export class CampusClient {
     if (match2) return match2[1];
     const match3 = html.match(/name="sesskey"\s+value="([a-zA-Z0-9]+)"/);
     if (match3) return match3[1];
-    throw new Error('No se pudo determinar el sesskey de Moodle. Verificá tu sesión con `npm run login`.');
+    throw new Error('No se pudo determinar el sesskey de Moodle. Verificá tu sesión con `utn-mcp-mendoza login`.');
   }
 
   /**
@@ -293,6 +317,39 @@ export class CampusClient {
   }
 
   /**
+   * Resuelve un módulo "URL" del Campus (/mod/url/view.php) al enlace externo al que apunta, SIN seguirlo:
+   * Moodle responde con una redirección o con una página que contiene el enlace.
+   */
+  async resolveUrlModule(pathOrUrl: string): Promise<string> {
+    const target = resolveCampusUrl(pathOrUrl);
+    if (new URL(target).pathname !== '/mod/url/view.php') {
+      throw new Error('Se esperaba una URL de un módulo enlace del Campus (/mod/url/view.php).');
+    }
+    campusRequestPolicy.assertAvailable();
+    const signal = getCampusOperationSignal();
+    return campusRequestPolicy.run(async () => {
+      const ctx = await this.getRequestContext();
+      const response = await ctx.get(target, { maxRedirects: 0 });
+      const status = response.status();
+      if (status === 401 || status === 403) throw new Error('Sesión expirada o permisos insuficientes.');
+      if ([301, 302, 303, 307, 308].includes(status)) {
+        const location = response.headers().location;
+        if (!location) throw new Error('El Campus no informó a dónde apunta el enlace.');
+        const resolved = new URL(location, target);
+        if (isCampusLoginUrl(resolved.href)) throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con utn-mcp-mendoza login.');
+        if (resolved.origin !== CAMPUS_ORIGIN) return resolved.href;
+      } else if (status < 200 || status >= 300) {
+        throw new Error(`El Campus respondió con HTTP ${status} al consultar el enlace.`);
+      }
+      const html = status >= 200 && status < 300 ? await response.text() : '';
+      this.throwIfSessionExpired(resolveCampusUrl(response.url()), html);
+      const external = extractExternalLink(html);
+      if (!external) throw new Error('No se encontró el enlace externo en la página del Campus.');
+      return external;
+    }, signal);
+  }
+
+  /**
    * Realiza una petición POST autenticada con datos de formulario.
    * Auto-inyecta sesskey si no está presente en formData.
    */
@@ -353,7 +410,7 @@ export class CampusClient {
     if (!SessionStore.exists()) {
       throw new Error(
         'No se encontró una sesión activa para el Campus Virtual UTN Mendoza.\n' +
-        'Por favor ejecutá `npm run login` en la terminal para iniciar sesión de forma segura.'
+        'Ejecutá `utn-mcp-mendoza login` en la terminal para iniciar sesión de forma segura (o `utn-mcp-mendoza setup-wizard` para que te guíe paso a paso).'
       );
     }
 
@@ -428,7 +485,7 @@ export class CampusClient {
       const currentUrl = resolveCampusUrl(page.url());
       if (diagnostics) diagnostics.finalPath = new URL(currentUrl).pathname;
       if (isCampusLoginUrl(currentUrl)) {
-        throw new Error('La sesión del Campus Virtual ha expirado. Por favor volvé a iniciar sesión con `npm run login`.');
+        throw new Error('La sesión del Campus Virtual ha expirado. Por favor volvé a iniciar sesión con `utn-mcp-mendoza login`.');
       }
 
       const html = await page.content();

@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -36,6 +37,7 @@ function pages(map: Record<string, string>) {
 }
 
 beforeEach(() => {
+  process.env.UTN_MCP_PROFILE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'utn-empty-profile-'));
   resetCourseCache();
   campus.getHtml.mockReset();
   listCourses.mockReset();

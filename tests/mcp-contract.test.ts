@@ -16,11 +16,12 @@ describe('MCP server contract', () => {
       const names = new Set(tools.map(tool => tool.name));
       const byName = new Map(tools.map(tool => [tool.name, tool]));
 
-      expect(names.size).toBe(24);
+      expect(names.size).toBe(31);
       for (const name of [
         'list_courses', 'open', 'read_file', 'get_grades', 'list_forums',
         'forum_post_topic', 'forum_reply', 'submit_assignment', 'submit_choice',
-        'get_course_contents', 'get_deadlines', 'get_announcements', 'get_quiz_info', 'download_file'
+        'get_course_contents', 'get_deadlines', 'get_announcements', 'get_quiz_info', 'download_file',
+        'session_status', 'start_login', 'install_browser', 'set_active_courses', 'get_pdf_page_image', 'read_external', 'study_pack'
       ]) {
         expect(names.has(name)).toBe(true);
       }
@@ -28,6 +29,26 @@ describe('MCP server contract', () => {
       expect(assignmentSchema?.properties).toHaveProperty('attachment_paths');
       expect(assignmentSchema?.required).not.toContain('attachment_paths');
       expect(byName.get('list_courses')?.annotations?.readOnlyHint).toBe(true);
+      // Las herramientas que escriben archivos locales o abren el navegador no se declaran de solo lectura.
+      for (const name of ['download_file', 'start_login', 'install_browser', 'set_active_courses']) {
+        expect(byName.get(name)?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false });
+      }
+      for (const name of ['session_status', 'get_pdf_page_image', 'read_external', 'study_pack', 'get_deadlines']) {
+        expect(byName.get(name)?.annotations?.readOnlyHint).toBe(true);
+      }
+      expect(byName.get('study_pack')?.inputSchema.required).toEqual(expect.arrayContaining(['course_id', 'unit']));
+
+      const { prompts } = await client.listPrompts();
+      expect(prompts.map(prompt => prompt.name).sort()).toEqual([
+        'conectar_con_el_campus', 'plan_de_estudio', 'practica_de_unidad', 'preparar_parcial',
+        'que_entrego', 'resumen_de_mi_semana', 'resumir_unidad', 'tarjetas_de_repaso'
+      ]);
+      const unitPrompt = await client.getPrompt({ name: 'resumir_unidad', arguments: { materia: 'Inteligencia Artificial', unidad: '4' } });
+      const text = String((unitPrompt.messages[0].content as { text?: string }).text);
+      expect(text).toMatch(/study_pack/);
+      expect(text).toMatch(/outline/);
+      expect(text).toMatch(/unidad 4 de Inteligencia Artificial/i);
+      expect(text).toMatch(/no inventes/i);
       for (const name of [
         'forum_post_topic', 'forum_reply', 'calendar_add_event', 'submit_choice'
       ]) {

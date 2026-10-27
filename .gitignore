@@ -49,3 +49,6 @@ coverage/
 auth.json
 credentials.json
 *.session
+
+# Paquetes generados (.mcpb)
+release/

@@ -1,92 +1,42 @@
-import { chromium } from 'playwright';
-import readline from 'node:readline/promises';
-import { CAMPUS_ORIGIN, PATHS } from '../config.js';
-import { SessionStore } from './session-store.js';
-import { describeCliError } from '../client/friendly-errors.js';
+import { installChromium } from '../cli/install-browser.js';
+import { browserInstalled } from './browser.js';
+import { runBrowserLogin, type BrowserLoginResult } from './browser-login.js';
 
+/**
+ * Inicio de sesión desde la terminal. No pide pulsar Enter ni volver a la terminal: se abre el Campus,
+ * la persona ingresa ahí y, apenas la página confirma que entró, la sesión se guarda y la ventana se cierra.
+ * Si falta el navegador, se instala solo.
+ */
 export async function loginInteractive(): Promise<boolean> {
   console.log('\n======================================================');
   console.log('   UTN MCP Mendoza — Inicio de Sesión en Campus FRM   ');
   console.log('======================================================\n');
-  console.log('1. Se abrirá una ventana de Chromium en modo visible.');
-  console.log('2. Ingresá tu usuario y contraseña DIRECTAMENTE en el campus.');
-  console.log('   (No se leen las credenciales. El estado del navegador incluye cookies de sesión y se guarda localmente).');
-  console.log('3. Una vez que hayas ingresado a tu panel (/my/), este proceso');
-  console.log('   guardará automáticamente tu sesión de navegación local.\n');
 
-  let browser;
-  try {
-    browser = await chromium.launch({
-      headless: false
-    });
-  } catch (error) {
-    console.error('\n[Error durante el inicio de sesión]:', describeCliError(error));
-    return false;
-  }
-
-  const context = await browser.newContext({
-    acceptDownloads: false
-  });
-
-  const page = await context.newPage();
-
-  try {
-    const loginUrl = new URL(PATHS.login, CAMPUS_ORIGIN).href;
-    console.log(`Navegando a la pantalla de acceso: ${loginUrl}...`);
-    await page.goto(loginUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
-    console.log('\nEsperando que inicies sesión en la ventana del navegador...');
-    console.log('Podés presionar ENTER en esta consola una vez que veas tu página principal.');
-
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-    // Esperar de forma dual: o bien el usuario da ENTER, o detectamos que la página navegó a /my/
-    const waitNavigationPromise = page.waitForURL(url => {
-      const pathname = url.pathname;
-      return pathname.includes('/my') || (pathname.startsWith('/course') && !pathname.includes('login'));
-    }, { timeout: 180000 }).catch(() => null);
-
-    const waitEnterPromise = rl.question('\nPresioná ENTER cuando hayas completado el ingreso: ').catch(() => '');
-
-    await Promise.race([waitNavigationPromise, waitEnterPromise]);
-    rl.close();
-
-    // Pequeña pausa para asegurar que las cookies finales de sesión se hayan asentado
-    await page.waitForTimeout(2000);
-
-    // Verificamos si estamos autenticados navegando a /my/ si no estamos allí
-    const currentUrl = page.url();
-    if (!currentUrl.includes('/my')) {
-      await page.goto(new URL(PATHS.dashboard, CAMPUS_ORIGIN).href, { waitUntil: 'domcontentloaded', timeout: 15000 });
-      await page.waitForTimeout(1000);
-    }
-
-    const isLogin = await page.evaluate(() => {
-      const path = window.location.pathname;
-      const hasInputs = Boolean(document.querySelector('input[name="username"], input#username'));
-      return path.includes('login') || hasInputs;
-    });
-
-    if (isLogin) {
-      console.error('\n[Error] Parece que no se completó el inicio de sesión.');
+  if (!browserInstalled()) {
+    console.log('Falta el navegador que se usa para iniciar sesión. Lo instalo ahora (unos 150 MB; puede tardar un par de minutos)…\n');
+    const status = installChromium();
+    if (status !== 0 || !browserInstalled()) {
+      console.error('\n[Error] No se pudo instalar el navegador. Probá: utn-mcp-mendoza install-browser (en Linux, si pide permisos: utn-mcp-mendoza install-browser --with-deps).');
       return false;
     }
-
-    // Guardar el estado de la sesión
-    await SessionStore.save(await context.storageState());
-    SessionStore.protectSessionFile();
-    console.log('\n[Éxito] Sesión guardada localmente. El archivo contiene cookies de autenticación: no lo compartas ni lo agregues a Git.');
-    console.log('Ya podés utilizar el servidor MCP con asistentes de IA.\n');
-    return true;
-  } catch (error) {
-    console.error('\n[Error durante el inicio de sesión]:', describeCliError(error));
-    return false;
-  } finally {
-    try {
-      await context.close();
-      await browser.close();
-    } catch {
-      // Ignorar errores al cerrar
-    }
+    console.log('\n✔ Navegador instalado.\n');
   }
+
+  console.log('Se va a abrir una ventana con la página de acceso del Campus.');
+  console.log('1. Escribí tu usuario y contraseña ahí (este programa nunca los ve).');
+  console.log('2. Eso es todo: la ventana se cierra sola cuando entrás. No hace falta volver a esta terminal.\n');
+
+  const result = await runBrowserLogin({ onProgress: message => console.log(message) });
+  if (!result.ok) {
+    console.error(`\n[Error] ${result.message}`);
+    return false;
+  }
+  console.log('\n[Éxito] Sesión guardada de forma segura en tu equipo. No la compartas ni la agregues a Git.');
+  console.log('Ya podés usar el MCP desde tu cliente de IA.\n');
+  return true;
+}
+
+/** Inicio de sesión desde el cliente de IA (herramienta start_login): igual que el anterior, sin consola. */
+export async function loginInBackground(timeoutMs = 180000): Promise<BrowserLoginResult> {
+  return runBrowserLogin({ timeoutMs });
 }

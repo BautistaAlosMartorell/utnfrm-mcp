@@ -5,7 +5,7 @@ Los cambios deben conservar el servidor MCP local por STDIO, el acceso de solo l
 ## Antes de enviar un cambio
 
 1. Instalá Node.js 22.13 o posterior y ejecutá `npm ci`.
-2. Ejecutá `npm run verify`, `npm run package:check` y `npm run build`.
+2. Ejecutá `npm run verify`, `npm run package:check` y `npm run build`. Si cambiás herramientas, actualizá el conteo en `scripts/build-safe.cjs`, `scripts/verify-package.cjs` y `tests/mcp-contract.test.ts`; `npm run package:mcpb` genera la extensión para Claude Desktop.
 3. No uses una cuenta real para probar escrituras. Las pruebas de Campus deben ser de solo lectura, acotadas y sin reintentos agresivos.
 4. No incluyas `.session`, archivos de estado del navegador, credenciales, modelos OCR, resultados privados ni salidas con contenido académico.
 

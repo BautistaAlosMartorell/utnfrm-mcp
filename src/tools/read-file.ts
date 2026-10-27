@@ -10,6 +10,7 @@ export interface ReadFileInput {
   ocr?: boolean;
   format?: 'markdown' | 'text' | 'raw';
   full?: boolean;
+  layout?: boolean;
 }
 
 export async function handleReadFile(input: ReadFileInput): Promise<ExtractedFileContent> {
@@ -26,7 +27,9 @@ export async function handleReadFile(input: ReadFileInput): Promise<ExtractedFil
       offset: input.offset,
       ocr: input.ocr,
       format: input.format,
-      full: input.full
+      full: input.full,
+      // En los PDF se conservan las tablas con sus columnas salvo que se pida lo contrario.
+      layout: input.layout ?? true
     }
   );
 }

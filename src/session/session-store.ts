@@ -28,7 +28,7 @@ async function getSessionKey(create: boolean): Promise<Buffer> {
     await secrets.set({ service: KEYRING_SERVICE, name: KEYRING_NAME, value: key.toString('base64url') });
     return key;
   } catch {
-    throw new Error('No esta disponible el almacen seguro de sesiones del sistema. Inicia una sesion de escritorio desbloqueada (Keychain en macOS o Secret Service en Linux) y volve a ejecutar el comando. No se guardo una copia sin cifrar.');
+    throw new Error('No esta disponible el almacen seguro de sesiones del sistema. Inicia una sesion de escritorio desbloqueada (Keychain en macOS o Secret Service en Linux) y volve a ejecutar el comando. No se guardo una copia sin cifrar. Ejecuta utn-mcp-mendoza doctor para ver que falta.');
   }
 }
 
@@ -166,6 +166,15 @@ export class SessionStore {
     SessionStore.ensureSessionDir();
     SessionStore.protectSessionFile();
     SessionStore.existingSessionProtected = true;
+  }
+
+  /** Cuándo se guardó la sesión (fecha de modificación del archivo cifrado), o undefined si no hay. */
+  static savedAt(): Date | undefined {
+    try {
+      return fs.statSync(SessionStore.getStoragePath()).mtime;
+    } catch {
+      return undefined;
+    }
   }
 
   static getStoragePath(): string {

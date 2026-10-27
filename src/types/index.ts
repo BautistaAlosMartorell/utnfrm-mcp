@@ -11,6 +11,8 @@ export interface Course {
   shortname?: string;
   url: string;
   category?: string;
+  /** true si está en el perfil de materias del cuatrimestre (solo aparece si hay un perfil definido). */
+  active?: boolean;
 }
 
 // Tarea / Assignment
@@ -281,7 +283,8 @@ export interface ExtractedFileContent {
 const COURSE_REF_DESCRIPTION = 'Materia: ID numérico (de list_courses), URL del curso o su nombre, por ejemplo "126" o "ciencia de datos". Si el nombre es ambiguo se informan las candidatas.';
 
 export const ListCoursesInputSchema = z.object({
-  query: z.string().trim().min(1).max(200).optional().describe('Filtro opcional por nombre (sin acentos ni mayúsculas), por ejemplo "inteligencia" o "redes neuronales"')
+  query: z.string().trim().min(1).max(200).optional().describe('Filtro opcional por nombre (sin acentos ni mayúsculas), por ejemplo "inteligencia" o "redes neuronales"'),
+  active_only: z.boolean().optional().describe('true devuelve solo las materias del perfil del cuatrimestre (ver set_active_courses)')
 });
 
 export const ListAssignmentsInputSchema = z.object({
@@ -310,7 +313,8 @@ export const ReadFileInputSchema = z.object({
   page: z.number().int().positive().max(10000).optional().describe('Número de página o fragmento a leer, inicia en 1'),
   page_size: z.number().int().min(256).max(20000).optional().describe('Cantidad máxima de caracteres por fragmento (por defecto 8000; máximo 20000)'),
   format: z.enum(['markdown', 'text', 'raw']).optional().describe('Salida extraída: markdown conserva tablas; text y raw devuelven texto plano, no bytes binarios.'),
-  full: z.boolean().optional().describe('true devuelve el documento completo en una sola respuesta (hasta 150.000 caracteres) en vez de fragmentos de 8.000; si todavía se trunca, continuar con offset.')
+  full: z.boolean().optional().describe('true devuelve el documento completo en una sola respuesta (hasta 150.000 caracteres) en vez de fragmentos de 8.000; si todavía se trunca, continuar con offset.'),
+  layout: z.boolean().optional().describe('PDF: true (por defecto) reconstruye las tablas con sus columnas y celdas vacías en Markdown; false usa texto lineal.')
 });
 
 // Calificaciones
@@ -392,6 +396,35 @@ export const SubmitAssignmentInputSchema = z.object({
   confirm: z.literal(false).optional().default(false).describe('Compatibilidad con clientes antiguos: debe ser false. true se rechaza y nunca autoriza una escritura.')
 }).strict();
 
+// Sesión y primeros pasos sin terminal
+export const SessionStatusInputSchema = z.object({});
+export const StartLoginInputSchema = z.object({});
+export const InstallBrowserInputSchema = z.object({});
+
+export const GetPdfPageImageInputSchema = z.object({
+  url: z.string().trim().min(1).max(2048).describe('URL del PDF en el Campus (…/mod/resource/view.php?id=… o …/pluginfile.php/…)'),
+  page: z.number().int().min(1).max(10000).describe('Número de página, desde 1'),
+  scale: z.number().min(0.5).max(3).optional().describe('Zoom de la imagen (por defecto 1,5; el ancho máximo es 2000 px)')
+});
+
+export const ReadExternalInputSchema = z.object({
+  url: z.string().trim().min(1).max(2048).describe('Enlace externo público (GitHub, Gist, Colab de GitHub) o el módulo URL del Campus que apunta a él (su ID o su URL /mod/url/view.php?id=…)')
+});
+
+export const StudyPackInputSchema = z.object({
+  course_id: z.string().trim().min(1).max(2048).describe('Materia: ID, URL o nombre (por ejemplo "informatica industrial")'),
+  unit: z.string().trim().min(1).max(100).describe('Unidad: número ("4") o parte del nombre ("planificación"). Un número se interpreta como "Unidad 4".'),
+  include_content: z.boolean().optional().describe('false devuelve solo el índice, el estado de lectura y los temas (sin el texto): útil para ver qué hay antes de pedirlo todo'),
+  include_external: z.boolean().optional().describe('false omite los enlaces externos (por defecto se leen los de sitios permitidos)'),
+  max_chars_per_source: z.number().int().min(1000).max(150000).optional().describe('Tope de caracteres por fuente (por defecto 60.000)'),
+  max_total_chars: z.number().int().min(5000).max(400000).optional().describe('Tope total de caracteres de texto (por defecto 200.000)')
+});
+
+export const SetActiveCoursesInputSchema = z.object({
+  courses: z.array(z.string().trim().min(1).max(200)).max(30).optional().describe('Materias que cursás este cuatrimestre (nombres o IDs). Si se omite, solo se consulta el perfil actual.'),
+  clear: z.boolean().optional().describe('true borra el perfil: las herramientas vuelven a revisar todas las materias.')
+});
+
 // Contenido de curso, entregas, avisos, cuestionarios y descargas
 export const GetCourseContentsInputSchema = z.object({
   course_id: z.string().trim().min(1).max(2048).describe(COURSE_REF_DESCRIPTION),
@@ -404,14 +437,16 @@ export const GetDeadlinesInputSchema = z.object({
   days_ahead: z.number().int().min(1).max(365).optional().describe('Ventana de días hacia adelante (por defecto 30)'),
   include_completed: z.boolean().optional().describe('true incluye lo ya entregado o con nota (por defecto no)'),
   include_overdue: z.boolean().optional().describe('false oculta lo vencido sin entregar (por defecto se muestra)'),
-  overdue_days: z.number().int().min(1).max(3650).optional().describe('Hasta cuántos días atrás se muestra lo vencido sin entregar (por defecto 14)')
+  overdue_days: z.number().int().min(1).max(3650).optional().describe('Hasta cuántos días atrás se muestra lo vencido sin entregar (por defecto 14)'),
+  all_courses: z.boolean().optional().describe('true revisa todas las materias aunque haya un perfil del cuatrimestre')
 });
 
 export const GetAnnouncementsInputSchema = z.object({
   course_id: z.string().trim().min(1).max(2048).optional().describe('Opcional: una sola materia (ID, URL o nombre). Si se omite se revisan todas.'),
   limit: z.number().int().min(1).max(50).optional().describe('Cantidad máxima de avisos (por defecto 10)'),
   since: z.string().trim().min(8).max(40).optional().describe('Solo avisos con actividad desde esta fecha (2026-10-01 o ISO 8601)'),
-  include_body: z.boolean().optional().describe('true agrega el texto de los 5 avisos más nuevos')
+  include_body: z.boolean().optional().describe('true agrega el texto de los 5 avisos más nuevos'),
+  all_courses: z.boolean().optional().describe('true revisa todas las materias aunque haya un perfil del cuatrimestre')
 });
 
 export const GetQuizInfoInputSchema = z.object({

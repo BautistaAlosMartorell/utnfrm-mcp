@@ -19,7 +19,8 @@ export interface DownloadFileResult {
 /** Carpeta de descargas del MCP. Solo se escribe aquí: la herramienta no acepta rutas de destino arbitrarias. */
 export function downloadDirectory(): string {
   const configured = process.env.UTN_MCP_DOWNLOAD_DIR;
-  if (configured) {
+  // Un valor vacío o sin reemplazar ("${user_config.…}", opción sin completar en la extensión) cuenta como no configurado.
+  if (configured && !configured.startsWith('${')) {
     if (!path.isAbsolute(configured)) throw new Error('UTN_MCP_DOWNLOAD_DIR debe ser una ruta absoluta.');
     return configured;
   }

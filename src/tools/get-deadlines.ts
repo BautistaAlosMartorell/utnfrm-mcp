@@ -3,8 +3,8 @@ import { rethrowTerminalCampusFailure } from '../client/campus-error-kind.js';
 import { PATHS } from '../config.js';
 import { daysUntil } from '../parsers/campus-date.js';
 import { parseAssignmentRows, parseQuizIndex } from '../parsers/index-tables.js';
-import type { Course } from '../types/index.js';
-import { listCoursesCached, resolveCourse } from './course-ref.js';
+import { resolveCourse } from './course-ref.js';
+import { scopeCourses } from './active-courses.js';
 
 /** Presupuesto de tiempo: los clientes MCP suelen cortar a los ~60 s y el Campus se consulta de a una solicitud por segundo. */
 const TIME_BUDGET_MS = 40_000;
@@ -25,6 +25,7 @@ export interface DeadlinesInput {
   include_completed?: boolean;
   include_overdue?: boolean;
   overdue_days?: number;
+  all_courses?: boolean;
 }
 
 export interface Deadline {
@@ -45,6 +46,8 @@ export interface DeadlinesResult {
   generatedAt: string;
   timezone: string;
   windowDays: number;
+  /** 'perfil' si se revisaron solo las materias del cuatrimestre; 'todas' en otro caso. */
+  scope: 'perfil' | 'todas' | 'materia';
   deadlines: Deadline[];
   count: number;
   coursesScanned: number;
@@ -118,14 +121,17 @@ export async function handleGetDeadlines(input: DeadlinesInput = {}): Promise<De
   const overdueSince = now.getTime() - (input.overdue_days ?? DEFAULT_OVERDUE_DAYS) * 86_400_000;
 
   let courses: Array<{ id: string; name?: string }>;
+  let scope: DeadlinesResult['scope'] = 'materia';
+  const warnings: string[] = [];
   if (input.course_id) {
     courses = [await resolveCourse(input.course_id)];
   } else {
-    const all: Course[] = await listCoursesCached();
-    courses = all.map(course => ({ id: course.id, name: course.name }));
+    const scoped = await scopeCourses(input.all_courses);
+    courses = scoped.courses;
+    scope = scoped.scope;
+    if (scoped.warning) warnings.push(scoped.warning);
   }
 
-  const warnings: string[] = [];
   const collected: Deadline[] = [];
   const started = Date.now();
   let scanned = 0;
@@ -154,6 +160,7 @@ export async function handleGetDeadlines(input: DeadlinesInput = {}): Promise<De
     generatedAt: now.toISOString(),
     timezone: 'America/Argentina/Mendoza (UTC-03:00)',
     windowDays,
+    scope,
     deadlines,
     count: deadlines.length,
     coursesScanned: scanned,

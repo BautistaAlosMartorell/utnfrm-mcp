@@ -4,8 +4,9 @@ import { Course } from '../types/index.js';
 import { PATHS } from '../config.js';
 import { rethrowTerminalCampusFailure } from '../client/campus-error-kind.js';
 import { matchCourses } from './course-match.js';
+import { readActiveCourseIds } from '../session/profile.js';
 
-export async function handleListCourses(query?: string): Promise<{ courses: Course[]; count: number; query?: string }> {
+export async function handleListCourses(query?: string, activeOnly?: boolean): Promise<{ courses: Course[]; count: number; query?: string }> {
   // Intentar primero lectura directa HTTP de /my/courses.php
   let html = '';
   let lastReadError: unknown;
@@ -49,6 +50,13 @@ export async function handleListCourses(query?: string): Promise<{ courses: Cour
   if (courses.length === 0 && lastReadError) throw lastReadError;
   if (courses.length === 0 && !hasExplicitEmptyCoursesMessage(html)) {
     throw new Error('Moodle no confirmó una lista vacía de materias y no se pudieron reconocer cursos en la página. Revisá el estado del Campus antes de interpretar el resultado.');
+  }
+
+  // Con un perfil de materias del cuatrimestre, cada curso indica si está activo.
+  const activeIds = new Set(readActiveCourseIds());
+  if (activeIds.size > 0) {
+    courses = courses.map(course => ({ ...course, active: activeIds.has(course.id) }));
+    if (activeOnly) courses = courses.filter(course => course.active);
   }
 
   const trimmed = query?.trim();

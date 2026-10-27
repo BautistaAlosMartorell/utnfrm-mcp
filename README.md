@@ -105,16 +105,18 @@ utn-mcp-mendoza install-browser
 
 Cuando macOS pregunte, permite que UTN FRM MCP use el Llavero de inicio de sesión.
 
+> **Atajo: asistente guiado.** Una vez hecho el paso 3, ejecutá `utn-mcp-mendoza setup-wizard` y se encarga de lo que sigue: revisa tu equipo, instala el navegador si falta, abre el Campus para que inicies sesión (sin pedirte la contraseña), conecta los clientes de IA que encuentre en tu equipo y termina con una prueba real. Si algo requiere permisos de administrador, te muestra el comando exacto. Con `--yes` acepta las opciones por defecto, con `--no-login` omite el inicio de sesión y con `--no-register` no toca la configuración de tus clientes. Si preferís hacerlo a mano, seguí los pasos 4 y 5.
+
 ## 4. Inicia sesión en el Campus
 
 En la misma terminal:
 
 1. Ejecuta `utn-mcp-mendoza login`.
-2. Se abrirá una ventana del navegador en el Campus. Escribe tu usuario y contraseña **solo allí**, como cuando entras normalmente al Campus.
-3. Cuando veas tu página de inicio del Campus, vuelve a la terminal y pulsa **Enter**.
+2. Se abrirá una ventana del navegador en el Campus (con un cartel que te lo recuerda). Escribe tu usuario y contraseña **solo allí**, como cuando entras normalmente al Campus.
+3. Eso es todo: **no hace falta volver a la terminal ni pulsar nada**. Apenas el Campus confirma que entraste, la sesión se guarda y la ventana se cierra sola. Si falta el navegador, se instala solo la primera vez.
 4. Comprueba el acceso ejecutando `utn-mcp-mendoza status`.
 
-El MCP no guarda tu contraseña. La sesión se conserva en el almacenamiento seguro del sistema. Si más adelante vence, vuelve a ejecutar `utn-mcp-mendoza login` y repite estos pasos; no hace falta reinstalar.
+El MCP no guarda tu contraseña. La sesión se conserva en el almacenamiento seguro del sistema. Si más adelante vence, vuelve a ejecutar `utn-mcp-mendoza login`; no hace falta reinstalar. (Con el MCP conectado también podés pedirle a tu cliente de IA «renová mi sesión del Campus»: usa `start_login`.)
 
 ## 5. Conecta el servidor a tu cliente
 
@@ -154,9 +156,37 @@ Además de las herramientas básicas (materias, tareas, archivos, notas, foros y
 | `get_announcements` | Avisos recientes del foro de novedades, con fecha y, si querés, el texto. |
 | `get_quiz_info` | Reglas, nota e intentos de un cuestionario, o todos los de una materia. Nunca inicia ni envía un intento. |
 | `download_file` | Guarda un archivo del Campus en una carpeta local (`~/Downloads/utn-mcp`) sin sobrescribir nada. |
-| `read_file` con `full: true` | Devuelve el documento completo en una sola respuesta en vez de fragmentos. |
+| `read_file` con `full: true` | Devuelve el documento completo en una sola respuesta en vez de fragmentos. En los PDF las tablas se reconstruyen con sus columnas y celdas vacías. |
+| `study_pack` | Junta todo el material de una unidad (archivos, carpetas, páginas y enlaces permitidos), con un índice de temas por página y el estado de lectura de cada fuente. Es la base de los resúmenes. |
+| `get_pdf_page_image` | Dibuja una página de un PDF como imagen, para ver diagramas, gráficos y fórmulas que el texto no captura. |
+| `read_external` | Lee notebooks y archivos públicos que la cátedra enlaza (GitHub, Gist, Colab alojado en GitHub). |
+| `session_status`, `start_login`, `install_browser` | Permiten conectar el Campus **sin terminal**: ver el estado de la sesión, instalar el navegador y abrir la ventana de inicio de sesión desde tu cliente de IA. |
+| `set_active_courses` | Guarda qué materias cursás este cuatrimestre para que las consultas generales (entregas, avisos) revisen solo esas y respondan mucho más rápido. |
 
 En las herramientas que piden una materia podés usar su nombre ("ciencia de datos") en lugar del ID numérico. `list_courses` acepta `query` para filtrar por nombre. Las fechas se informan en formato ISO 8601 con la zona horaria del Campus (UTC-03:00).
+
+## Atajos listos para usar
+
+Tu cliente los muestra como acciones (según el cliente, con `/` o en el menú de prompts):
+
+| Atajo | Qué hace |
+| --- | --- |
+| `conectar_con_el_campus` | Te guía para instalar el navegador e iniciar sesión, sin terminal. |
+| `resumen_de_mi_semana` | Qué vence en 7 días y qué avisos nuevos hay. |
+| `que_entrego` | Pendientes hasta una fecha o cantidad de días. |
+| `resumir_unidad` | Resumen completo de una unidad, con índice de cobertura y páginas de origen. |
+| `preparar_parcial` | Temas, chuleta, preguntas de práctica y plan de estudio. |
+| `practica_de_unidad`, `tarjetas_de_repaso`, `plan_de_estudio` | Preguntas con respuestas, tarjetas y plan día por día. |
+
+## Instalación sin terminal (Claude Desktop)
+
+Si usás Claude Desktop no necesitás Node.js ni la terminal: bajá el archivo `utn-mcp-mendoza-<versión>.mcpb` de la Release (junto a su `.sha256`), abrilo con doble clic (o en Ajustes → Extensiones) y completá las dos opciones opcionales. Después pedile a Claude «Conectame con el Campus»: usa `session_status`, `install_browser` (la primera vez descarga el navegador, unos 150 MB) y `start_login` (se abre una ventana del Campus: tu contraseña la escribís solo ahí). Las sesiones vencen tras unas horas; para renovarla, pedile lo mismo.
+
+Para generar el paquete: `npm run build && npm run package:mcpb` (crea `release/`; hace falta red para instalar las dependencias de producción). El paquete no está firmado: verificá su SHA-256 antes de instalarlo.
+
+## Resumen semanal
+
+`utn-mcp-mendoza digest` imprime qué vence en los próximos 7 días (`--days=N`), lo vencido sin entregar y los avisos nuevos. Con `--notify` muestra además una notificación del sistema (Linux con `notify-send`, macOS), y con `--json` entrega los datos. `utn-mcp-mendoza digest --schedule-help` explica cómo programarlo cada lunes con cron o el Programador de tareas de Windows; no se instala nada automáticamente.
 
 ## Variables de entorno opcionales
 
@@ -165,6 +195,7 @@ En las herramientas que piden una materia podés usar su nombre ("ciencia de dat
 | `UTN_MCP_DEBUG=1` | Muestra el detalle técnico (pila de llamadas, sin URLs ni credenciales) cuando un comando de la terminal falla. |
 | `UTN_MCP_CACHE=1` | Guarda en disco los archivos descargados para no volver a bajarlos. Está **desactivada** por defecto porque deja material académico sin cifrar en tu equipo. |
 | `UTN_MCP_CACHE_DIR` | Ruta absoluta de la caché (por defecto, dentro de la carpeta de sesión). Máximo 200 MiB; las entradas vencen a los 14 días. |
+| `UTN_MCP_EXTERNAL_ALLOW` | Sitios extra (nombres de host separados por coma) que `read_external` y `study_pack` pueden leer cuando la cátedra los enlaza. Por defecto solo GitHub, Gist y Colab alojado en GitHub; se lee sin cookies ni datos del Campus. |
 | `UTN_MCP_DOWNLOAD_DIR` | Ruta absoluta donde `download_file` guarda los archivos (por defecto `~/Downloads/utn-mcp`). |
 | `UTN_MCP_MIN_REQUEST_INTERVAL_MS` | Pausa mínima entre consultas al Campus (por defecto 1000). Con muchas materias, `get_deadlines` y `get_announcements` pueden devolver `partial: true`; volvé a pedir las pendientes con `course_id`. |
 
@@ -177,6 +208,10 @@ En las herramientas que piden una materia podés usar su nombre ("ciencia de dat
 - **No hagas entregas ni publiques desde esta beta.** Las escrituras en Moodle están deshabilitadas.
 
 ## Si algo no funciona
+
+**Primero ejecutá `utn-mcp-mendoza doctor`.** Muestra en una pantalla qué está bien y qué falta (Node.js, navegador, almacén seguro, sesión del Campus y clientes conectados) y, para cada punto en rojo, el comando que lo resuelve. La salida no incluye rutas, usuarios ni datos del Campus, así que podés pegarla tal cual al reportar un problema. Con `--offline` no consulta al Campus.
+
+Las sesiones del Campus vencen tras unas horas: si `doctor` o tu cliente dicen que la sesión venció, ejecutá `utn-mcp-mendoza login` otra vez. No hace falta reinstalar nada.
 
 - **No se reconoce `node`, `npm`, `utn-mcp-mendoza` o el comando de tu cliente (`codex`, `claude`, `opencode`):** instala o reinstala el requisito y abre una terminal nueva. Comprueba Node.js con `node --version`.
 - **No abre el navegador:** ejecuta `utn-mcp-mendoza install-browser` otra vez. En Linux puede pedir instalar dependencias del sistema.
