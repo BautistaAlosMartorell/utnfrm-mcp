@@ -105,7 +105,7 @@ utn-mcp-mendoza install-browser
 
 Cuando macOS pregunte, permite que UTN FRM MCP use el Llavero de inicio de sesión.
 
-> **Atajo: asistente guiado.** Una vez hecho el paso 3, ejecutá `utn-mcp-mendoza setup-wizard` y se encarga de lo que sigue: revisa tu equipo, instala el navegador si falta, abre el Campus para que inicies sesión (sin pedirte la contraseña), conecta los clientes de IA que encuentre en tu equipo y termina con una prueba real. Si algo requiere permisos de administrador, te muestra el comando exacto. Con `--yes` acepta las opciones por defecto, con `--no-login` omite el inicio de sesión y con `--no-register` no toca la configuración de tus clientes. Si preferís hacerlo a mano, seguí los pasos 4 y 5.
+> **Atajo: asistente guiado.** Una vez hecho el paso 3, ejecutá `utn-mcp-mendoza setup-wizard` y se encarga de lo que sigue: revisa tu equipo, instala el navegador si falta, te ofrece guardar tu usuario (DNI) y contraseña UTN de forma cifrada (opcional), abre el Campus para que inicies sesión, conecta los clientes de IA que encuentre en tu equipo y termina con una prueba real. Si algo requiere permisos de administrador, te muestra el comando exacto. Con `--yes` acepta las opciones por defecto, con `--no-login` omite el inicio de sesión y con `--no-register` no toca la configuración de tus clientes. Si preferís hacerlo a mano, seguí los pasos 4 y 5.
 
 ## 4. Inicia sesión en el Campus
 
@@ -116,7 +116,7 @@ En la misma terminal:
 3. Eso es todo: **no hace falta volver a la terminal ni pulsar nada**. Apenas el Campus confirma que entraste, la sesión se guarda y la ventana se cierra sola. Si falta el navegador, se instala solo la primera vez.
 4. Comprueba el acceso ejecutando `utn-mcp-mendoza status`.
 
-El MCP no guarda tu contraseña. La sesión se conserva en el almacenamiento seguro del sistema. Si más adelante vence, vuelve a ejecutar `utn-mcp-mendoza login`; no hace falta reinstalar. (Con el MCP conectado también podés pedirle a tu cliente de IA «renová mi sesión del Campus»: usa `start_login`.)
+Por defecto el MCP no guarda tu contraseña: solo lo hace si la cargás en el asistente (opcional), cifrada con el almacén seguro del sistema; `utn-mcp-mendoza forget-credentials` la elimina. La sesión se conserva en el almacenamiento seguro del sistema. Si más adelante vence, vuelve a ejecutar `utn-mcp-mendoza login`; no hace falta reinstalar. (Con el MCP conectado también podés pedirle a tu cliente de IA «renová mi sesión del Campus»: usa `start_login`.)
 
 ## 5. Conecta el servidor a tu cliente
 

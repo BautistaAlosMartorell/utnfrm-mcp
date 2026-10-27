@@ -4,7 +4,7 @@ UTN FRM MCP es un proyecto independiente y no oficial. La beta actual es de solo
 
 ## Datos locales
 
-- La contraseña se ingresa en el navegador de Moodle y no se guarda en la configuración MCP.
+- El inicio de sesión del Campus se hace en el navegador de Moodle. Si en el asistente (`setup-wizard`) elegís guardar tu usuario y contraseña UTN (opcional; hacen falta para Autogestión y el correo), quedan cifradas con el almacén seguro del sistema (DPAPI en Windows, Secret Service o Keychain en el resto), nunca en archivos de texto ni en la configuración MCP. Se eliminan con `utn-mcp-mendoza forget-credentials`.
 - La sesión se conserva en el equipo del usuario; en Windows queda protegida con DPAPI para esa cuenta. No la adjuntes a un issue, no la sincronices públicamente y no la compartas.
 - La caché de archivos (`UTN_MCP_CACHE=1`) está desactivada por defecto. Si la activás, los archivos quedan sin cifrar en tu equipo (carpeta con permisos solo para tu usuario); borrala cuando termines. `download_file` solo escribe en su carpeta de descargas y nunca sobrescribe archivos existentes.
 - `start_login` abre una ventana del navegador en el Campus e `install_browser` descarga el navegador que usa el MCP (unos 150 MiB, de la fuente oficial de Playwright); ninguna de las dos lee tu contraseña ni hace nada en el Campus.
