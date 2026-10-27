@@ -6,16 +6,19 @@ import { runWizard, type WizardDeps, type WizardIO } from '../src/cli/wizard.js'
 const ok = (id: DoctorCheck['id'], title = id): DoctorCheck => ({ id, title, status: 'ok', detail: 'ok' });
 const skip = (id: DoctorCheck['id']): DoctorCheck => ({ id, title: id, status: 'skip', detail: 'no instalado' });
 
-function harness(options: { ephemeral?: boolean; pickAnswer?: number[] | undefined; hasProfile?: boolean; answers?: boolean[]; checks?: (opts?: { machineOnly?: boolean; offline?: boolean }) => DoctorCheck[]; deps?: Partial<WizardDeps> } = {}) {
+function harness(options: { ephemeral?: boolean; pickAnswer?: number[] | undefined; hasProfile?: boolean; answers?: boolean[]; typed?: string[]; checks?: (opts?: { machineOnly?: boolean; offline?: boolean }) => DoctorCheck[]; deps?: Partial<WizardDeps> } = {}) {
   const output: string[] = [];
   const questions: string[] = [];
   const answers = [...(options.answers ?? [])];
   const picks: Array<{ question: string; items: string[] }> = [];
   const pickAnswer = options.pickAnswer;
+  const typed = [...(options.typed ?? [])];
+  const prompts: Array<{ question: string; secret: boolean }> = [];
   const io: WizardIO = {
     say: message => { output.push(message ?? ''); },
     confirm: async (question, defaultYes) => { questions.push(question); return answers.length ? answers.shift()! : defaultYes; },
-    pick: async (question, items) => { picks.push({ question, items }); return pickAnswer; }
+    pick: async (question, items) => { picks.push({ question, items }); return pickAnswer; },
+    prompt: async (question, promptOptions) => { prompts.push({ question, secret: Boolean(promptOptions?.secret) }); return typed.shift() ?? ''; }
   };
   const healthy = (opts?: { machineOnly?: boolean; offline?: boolean }): DoctorCheck[] => opts?.machineOnly
     ? [ok('node'), ok('browser'), ok('storage'), ok('display')]
@@ -24,6 +27,8 @@ function harness(options: { ephemeral?: boolean; pickAnswer?: number[] | undefin
     diagnose: vi.fn(async opts => (options.checks ?? healthy)(opts)),
     installBrowser: vi.fn(() => 0),
     login: vi.fn(async () => true),
+    getCredentials: vi.fn(async () => ({ username: '12345678', password: 'fixture', email: 'yo@alumnos.example' })),
+    saveCredentials: vi.fn(async () => undefined),
     register: vi.fn(() => ({ ok: true, line: 'claude mcp add …' })),
     listCourses: vi.fn(async () => [{ id: '1', name: 'Ciencia de Datos', url: 'u' }, { id: '2', name: 'Inteligencia Artificial', url: 'u' }]),
     isEphemeralInstall: vi.fn(() => options.ephemeral ?? false),
@@ -32,7 +37,7 @@ function harness(options: { ephemeral?: boolean; pickAnswer?: number[] | undefin
     clients: CLIENTS,
     ...options.deps
   };
-  return { io, deps, output, questions, picks, text: () => output.join('\n') };
+  return { io, deps, output, questions, picks, prompts, text: () => output.join('\n') };
 }
 
 describe('setup wizard', () => {
@@ -43,11 +48,12 @@ describe('setup wizard', () => {
     expect(h.deps.login).not.toHaveBeenCalled();
     expect(h.deps.installBrowser).not.toHaveBeenCalled();
     expect(h.deps.register).not.toHaveBeenCalled(); // Claude Code ya estaba conectado
-    expect(h.text()).toMatch(/Paso 1 de 5.*Paso 2 de 5.*Paso 3 de 5.*Paso 4 de 5.*Paso 5 de 5/s);
+    expect(h.text()).toMatch(/Paso 1 de 6.*Paso 2 de 6.*Paso 3 de 6.*Paso 4 de 6.*Paso 5 de 6.*Paso 6 de 6/s);
     expect(h.text()).toMatch(/encontré 2 materias \(por ejemplo: Ciencia de Datos, Inteligencia Artificial\)/);
     expect(h.text()).toMatch(/¿Qué tengo para entregar esta semana\?/);
-    expect(h.text()).toMatch(/Nunca pide tu contraseña/);
-    expect(h.questions.join(' ')).not.toMatch(/contraseña|usuario/i); // el asistente jamás pide credenciales
+    expect(h.text()).toMatch(/almacén seguro de tu equipo/);
+    expect(h.deps.saveCredentials).not.toHaveBeenCalled(); // ya había credenciales: no se vuelven a pedir
+    expect(h.prompts).toEqual([]);
   });
 
   it('installs a missing browser after asking, then continues', async () => {
@@ -193,5 +199,69 @@ describe('setup wizard', () => {
     expect(h.text()).toMatch(/copia temporal \(npx\)/);
     expect(h.text()).toMatch(/npm install --global/);
     expect(result.pending).toContain('clientes');
+  });
+
+  it('asks for the DNI and a hidden password when none are saved, and stores them', async () => {
+    const h = harness({ typed: [' 12345678 ', 's3cr3t', 'alumno@alumnos.example'], deps: { getCredentials: vi.fn(async () => null) } });
+    const result = await runWizard({}, h.io, h.deps);
+    expect(h.prompts.map(prompt => [prompt.question.split(' (')[0], prompt.secret])).toEqual([['Usuario', false], ['Contraseña', true], ['Correo institucional', false]]);
+    expect(h.deps.saveCredentials).toHaveBeenCalledWith({ username: '12345678', password: 's3cr3t', email: 'alumno@alumnos.example' });
+    expect(result.completed).toContain('credenciales');
+    expect(h.text()).not.toContain('s3cr3t');
+  });
+
+  it('keeps going and records it as pending when the user declines to save credentials', async () => {
+    const h = harness({ answers: [false], deps: { getCredentials: vi.fn(async () => null) } });
+    const result = await runWizard({}, h.io, h.deps);
+    expect(h.prompts).toEqual([]);
+    expect(h.deps.saveCredentials).not.toHaveBeenCalled();
+    expect(result.pending).toContain('credenciales');
+    expect(result.ok).toBe(true);
+  });
+
+  it('never prompts for credentials with --yes', async () => {
+    const h = harness({ deps: { getCredentials: vi.fn(async () => null) } });
+    const result = await runWizard({ yes: true }, h.io, h.deps);
+    expect(h.prompts).toEqual([]);
+    expect(result.pending).toContain('credenciales');
+  });
+
+  it('saves nothing when the username or password comes back empty', async () => {
+    const h = harness({ typed: ['12345678', ''], deps: { getCredentials: vi.fn(async () => null) } });
+    const result = await runWizard({}, h.io, h.deps);
+    expect(h.deps.saveCredentials).not.toHaveBeenCalled();
+    expect(result.pending).toContain('credenciales');
+    expect(h.text()).toMatch(/obligatorios/);
+  });
+
+  it('reports a failing secure store instead of pretending the credentials were saved', async () => {
+    const unreadable = harness({ deps: { getCredentials: vi.fn(async () => { throw new Error('No esta disponible el almacen seguro'); }) } });
+    expect((await runWizard({}, unreadable.io, unreadable.deps)).pending).toContain('credenciales');
+    expect(unreadable.text()).toMatch(/almacen seguro/);
+
+    const unsaved = harness({ typed: ['1', '2'], deps: { getCredentials: vi.fn(async () => null), saveCredentials: vi.fn(async () => { throw new Error('boom'); }) } });
+    const result = await runWizard({}, unsaved.io, unsaved.deps);
+    expect(result.completed).not.toContain('credenciales');
+    expect(result.pending).toContain('credenciales');
+  });
+
+  it('saves without the mail and flags it pending when the institutional email is skipped or malformed', async () => {
+    const skipped = harness({ typed: ['1', '2', ''], deps: { getCredentials: vi.fn(async () => null) } });
+    const first = await runWizard({}, skipped.io, skipped.deps);
+    expect(skipped.deps.saveCredentials).toHaveBeenCalledWith({ username: '1', password: '2' });
+    expect(first.pending).toContain('correo');
+
+    const malformed = harness({ typed: ['1', '2', 'no-es-un-correo'], deps: { getCredentials: vi.fn(async () => null) } });
+    await runWizard({}, malformed.io, malformed.deps);
+    expect(malformed.deps.saveCredentials).toHaveBeenCalledWith({ username: '1', password: '2' });
+    expect(malformed.text()).toMatch(/no parece válido/);
+  });
+
+  it('asks only for the email when credentials were saved before the mail existed', async () => {
+    const h = harness({ typed: ['yo@alumnos.frm.utn.edu.ar'], deps: { getCredentials: vi.fn(async () => ({ username: '1', password: '2' })) } });
+    const result = await runWizard({}, h.io, h.deps);
+    expect(h.prompts).toHaveLength(1);
+    expect(h.deps.saveCredentials).toHaveBeenCalledWith({ username: '1', password: '2', email: 'yo@alumnos.frm.utn.edu.ar' });
+    expect(result.pending).not.toContain('correo');
   });
 });

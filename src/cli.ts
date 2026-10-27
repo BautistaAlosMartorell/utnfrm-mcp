@@ -10,6 +10,8 @@ import { handleWhoami } from './tools/whoami.js';
 import { approveAssignmentInConsole } from './cli/assignment-approval.js';
 import { debugErrorDetails, describeCliError } from './client/friendly-errors.js';
 import readline from 'node:readline/promises';
+import { Writable } from 'node:stream';
+import { CredentialStore } from './session/credential-store.js';
 import { registerClient, type ClientId } from './cli/clients.js';
 import { doctorExitCode, formatDoctor, runDoctor } from './cli/doctor.js';
 import { installChromium } from './cli/install-browser.js';
@@ -48,6 +50,16 @@ function consoleWizardIO(): WizardIO {
       } finally {
         rl.close();
       }
+    },
+    prompt: async (question, options) => {
+      if (!options?.secret) {
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        try { return await rl.question(question); } finally { rl.close(); }
+      }
+      // Salida silenciada: la terminal no repite lo que se escribe.
+      process.stdout.write(question);
+      const rl = readline.createInterface({ input: process.stdin, output: new Writable({ write: (_chunk, _encoding, done) => done() }), terminal: true });
+      try { return await rl.question(''); } finally { rl.close(); process.stdout.write('\n'); }
     },
     confirm: async (question, defaultYes) => {
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -90,6 +102,11 @@ async function main(): Promise<void> {
       try { hadSession = SessionStore.exists(); } catch { hadSession = true; }
       await SessionStore.clear();
       console.log(hadSession ? 'Se elimino la sesion local de UTN MCP Mendoza.' : 'No habia una sesion local guardada.');
+      return;
+    }
+    case 'forget-credentials': {
+      await CredentialStore.clear();
+      console.log('Se eliminaron las credenciales UTN guardadas en este equipo.');
       return;
     }
     case 'status': {
@@ -266,6 +283,7 @@ async function main(): Promise<void> {
       console.log('  utn-mcp-mendoza login       Abre el navegador para autenticarte');
       console.log('  utn-mcp-mendoza approve-assignment <id> Revisa y aprueba una entrega desde una terminal local');
       console.log('  utn-mcp-mendoza logout      Elimina la sesión local');
+      console.log('  utn-mcp-mendoza forget-credentials Elimina el usuario y la contraseña UTN guardados');
       console.log('  utn-mcp-mendoza status      Comprueba la sesión sin eliminarla');
       console.log('  utn-mcp-mendoza whoami      Muestra tu perfil');
       console.log('  utn-mcp-mendoza setup       Muestra bloques MCP');
