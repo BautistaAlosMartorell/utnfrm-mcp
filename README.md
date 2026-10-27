@@ -178,6 +178,8 @@ En las herramientas que piden una materia podés usar su nombre ("ciencia de dat
 
 ## Si algo no funciona
 
+Ejecuta primero `utn-mcp-mendoza doctor`: revisa Node.js, Chromium, el almacén de contraseñas (Linux), la sesión y los clientes registrados, e indica el comando exacto para cada problema. No muestra datos académicos, cookies ni rutas privadas, así que puedes pegar su salida en un reporte.
+
 - **No se reconoce `node`, `npm`, `utn-mcp-mendoza` o el comando de tu cliente (`codex`, `claude`, `opencode`):** instala o reinstala el requisito y abre una terminal nueva. Comprueba Node.js con `node --version`.
 - **No abre el navegador:** ejecuta `utn-mcp-mendoza install-browser` otra vez. En Linux puede pedir instalar dependencias del sistema.
 - **`install-browser` pide `sudo` en Linux:** el comando instala solo Chromium. Si además faltan bibliotecas del sistema, ejecutá `utn-mcp-mendoza install-browser --with-deps`.
