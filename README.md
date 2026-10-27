@@ -27,10 +27,10 @@ En Linux instala antes `libsecret-tools` y `gnome-keyring` (ver el bloque de Ubu
 
 ## 1. Descarga la beta
 
-De la [Release v2.1.0-beta.1](https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/tag/v2.1.0-beta.1), sección **Assets**, descarga y guarda juntos en una carpeta `utn-mcp-beta` dentro de Descargas:
+De la [Release v2.1.1](https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/tag/v2.1.1), sección **Assets**, descarga y guarda juntos en una carpeta `utn-mcp-beta` dentro de Descargas:
 
-- `utn-mcp-mendoza-2.1.0-beta.1.tgz`: el instalador.
-- `utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256`: para verificarlo.
+- `utn-mcp-mendoza-2.1.1.tgz`: el instalador.
+- `utn-mcp-mendoza-2.1.1.tgz.sha256`: para verificarlo.
 - `INICIO-RAPIDO.txt`: copia breve de estos pasos.
 
 No hacen falta los enlaces **Source code**.
@@ -42,21 +42,21 @@ En la carpeta `utn-mcp-beta`. Debe dar `OK`; si no, vuelve a descargar.
 **Windows — PowerShell**
 
 ```powershell
-$esperado = (Get-Content .\utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256 -Raw).Trim().Split()[0]
-$obtenido = (Get-FileHash .\utn-mcp-mendoza-2.1.0-beta.1.tgz -Algorithm SHA256).Hash.ToLower()
+$esperado = (Get-Content .\utn-mcp-mendoza-2.1.1.tgz.sha256 -Raw).Trim().Split()[0]
+$obtenido = (Get-FileHash .\utn-mcp-mendoza-2.1.1.tgz -Algorithm SHA256).Hash.ToLower()
 if ($obtenido -eq $esperado) { "OK: instalador verificado" } else { "ERROR: vuelve a descargarlo" }
 ```
 
 **Linux**
 
 ```bash
-sha256sum -c utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256
+sha256sum -c utn-mcp-mendoza-2.1.1.tgz.sha256
 ```
 
 **macOS**
 
 ```bash
-shasum -a 256 -c utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256
+shasum -a 256 -c utn-mcp-mendoza-2.1.1.tgz.sha256
 ```
 
 ## 2. Instala el MCP y Chromium
@@ -67,7 +67,7 @@ Abre una terminal en la carpeta y ejecuta solo el bloque de tu sistema. El segun
 
 ```powershell
 cd "$HOME\Downloads\utn-mcp-beta"
-npm install --global .\utn-mcp-mendoza-2.1.0-beta.1.tgz
+npm install --global .\utn-mcp-mendoza-2.1.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
@@ -79,7 +79,7 @@ Necesita el almacén seguro de contraseñas (Secret Service) de una sesión de e
 cd ~/Downloads/utn-mcp-beta
 sudo apt-get update
 sudo apt-get install -y libsecret-tools gnome-keyring
-npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
+npm install --global ./utn-mcp-mendoza-2.1.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
@@ -87,7 +87,7 @@ utn-mcp-mendoza install-browser
 
 ```bash
 cd ~/Downloads/utn-mcp-beta
-npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
+npm install --global ./utn-mcp-mendoza-2.1.1.tgz
 utn-mcp-mendoza install-browser
 ```
 
