@@ -14,14 +14,14 @@ Comprueba con `node --version` y `codex --version`, `claude --version` u `openco
 
 ## Alternativa: instalar desde npm
 
-Si prefieres no descargar archivos, instala el paquete publicado en npm y salta a **4. Inicia sesión en el Campus**:
+Si prefieres no descargar archivos, instala el paquete publicado en npm y salta a **3. Inicia sesión en el Campus**:
 
 ```bash
 npm install --global utn-mcp-mendoza@beta
 utn-mcp-mendoza install-browser
 ```
 
-En Linux instala antes `libsecret-tools` y `gnome-keyring` (ver el bloque de Ubuntu/Debian del paso 3). Para actualizar más adelante: `npm install --global utn-mcp-mendoza@beta` y luego `utn-mcp-mendoza install-browser`. Si prefieres verificar el instalador con SHA-256, usa la descarga manual de abajo.
+En Linux instala antes `libsecret-tools` y `gnome-keyring` (ver el bloque de Ubuntu/Debian del paso 2). Para actualizar más adelante: `npm install --global utn-mcp-mendoza@beta` y luego `utn-mcp-mendoza install-browser`. Si prefieres verificar el instalador con SHA-256, usa la descarga manual de abajo.
 
 ## 1. Descarga la beta
 
