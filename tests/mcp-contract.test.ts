@@ -16,12 +16,12 @@ describe('MCP server contract', () => {
       const names = new Set(tools.map(tool => tool.name));
       const byName = new Map(tools.map(tool => [tool.name, tool]));
 
-      expect(names.size).toBe(31);
+      expect(names.size).toBe(40);
       for (const name of [
         'list_courses', 'open', 'read_file', 'get_grades', 'list_forums',
         'forum_post_topic', 'forum_reply', 'submit_assignment', 'submit_choice',
         'get_course_contents', 'get_deadlines', 'get_announcements', 'get_quiz_info', 'download_file',
-        'session_status', 'start_login', 'install_browser', 'set_active_courses', 'get_pdf_page_image', 'read_external', 'study_pack'
+        'mail_list_messages', 'mail_read_message', 'mail_search', 'mail_delete_messages', 'mail_restore_messages', 'mail_set_seen', 'get_autogestion_avisos', 'sysacad_consultar', 'sysacad_inscripcion_estado', 'session_status', 'start_login', 'install_browser', 'set_active_courses', 'get_pdf_page_image', 'read_external', 'study_pack'
       ]) {
         expect(names.has(name)).toBe(true);
       }

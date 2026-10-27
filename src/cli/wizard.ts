@@ -3,6 +3,7 @@ import { CLIENTS, registerClient, type ClientId, type ClientSpec, type RegisterR
 import { runDoctor, type DoctorCheck, type DoctorOptions } from './doctor.js';
 import { readActiveCourseIds, writeActiveCourseIds } from '../session/profile.js';
 import { ROOT_DIR } from '../config.js';
+import { CredentialStore, type UtnCredentials } from '../session/credential-store.js';
 
 export interface WizardIO {
   say(message?: string): void;
@@ -10,12 +11,17 @@ export interface WizardIO {
   confirm(question: string, defaultYes: boolean): Promise<boolean>;
   /** Elegir varios de una lista numerada; devuelve las posiciones elegidas, o undefined si la persona acepta «todas». */
   pick(question: string, items: string[]): Promise<number[] | undefined>;
+  /** Pide un texto; con `secret` no se muestra lo que se escribe. */
+  prompt(question: string, options?: { secret?: boolean }): Promise<string>;
 }
 
 export interface WizardDeps {
   diagnose(options?: DoctorOptions): Promise<DoctorCheck[]>;
   installBrowser(): number;
   login(): Promise<boolean>;
+  /** Credenciales UTN guardadas (null si no hay); lanza si existen pero no se pueden abrir. */
+  getCredentials(): Promise<UtnCredentials | null>;
+  saveCredentials(credentials: UtnCredentials): Promise<void>;
   register(id: ClientId): RegisterResult;
   listCourses(): Promise<Course[]>;
   /** ¿Ya hay materias del cuatrimestre guardadas? */
@@ -35,8 +41,16 @@ export type WizardOptions = {
 
 export type WizardResult = { ok: boolean; completed: string[]; pending: string[] };
 
-const STEPS = 5;
+const STEPS = 6;
 const step = (n: number, title: string) => `\nPaso ${n} de ${STEPS} · ${title}`;
+
+/** El correo institucional (el que muestra Autogestión al entrar) es el usuario de IMAP; sin él no hay herramientas de correo. */
+async function askEmail(io: WizardIO): Promise<string | undefined> {
+  const email = (await io.prompt('Correo institucional (el que muestra Autogestión al entrar; Enter para omitir): ')).trim();
+  if (!email) return undefined;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { io.say('⚠ Ese correo no parece válido; no se guardó. Podés cargarlo más tarde volviendo a correr el asistente.'); return undefined; }
+  return email;
+}
 
 function find(checks: DoctorCheck[], id: string): DoctorCheck | undefined {
   return checks.find(check => check.id === id);
@@ -58,7 +72,7 @@ export async function runWizard(options: WizardOptions, io: WizardIO, deps: Wiza
   };
 
   io.say('Asistente de instalación de UTN MCP Mendoza');
-  io.say('Te va a guiar en 5 pasos. Nunca pide tu contraseña: la escribís solo en la página del Campus.');
+  io.say('Te va a guiar en 6 pasos. Guardar tu contraseña es opcional: si lo hacés, queda cifrada con el almacén seguro de tu equipo y solo se envía a los sitios de UTN.');
 
   // ── Paso 1: equipo ────────────────────────────────────────────────────────────────────────────
   io.say(step(1, 'Revisar tu equipo'));
@@ -90,8 +104,52 @@ export async function runWizard(options: WizardOptions, io: WizardIO, deps: Wiza
   if (display?.status === 'warn' && !options.skipLogin) io.say(`⚠ ${display.detail}. ${display.fix ?? ''}`.trim());
   completed.push('equipo');
 
-  // ── Paso 2: sesión ────────────────────────────────────────────────────────────────────────────
-  io.say(step(2, 'Iniciar sesión en el Campus'));
+  // ── Paso 2: credenciales ──────────────────────────────────────────────────────────────────────
+  io.say(step(2, 'Credenciales UTN (opcional)'));
+  io.say('El usuario (tu DNI) y la contraseña son los mismos en el Campus, Autogestión y el correo.');
+  let saved: UtnCredentials | null = null;
+  let readable = true;
+  try { saved = await deps.getCredentials(); }
+  catch (error) { readable = false; io.say(`⚠ ${error instanceof Error ? error.message : 'No se pudieron leer las credenciales guardadas.'}`); }
+  if (!readable) pending.push('credenciales');
+  else if (saved) {
+    io.say('✔ Ya hay credenciales guardadas. Para cambiarlas ejecutá `utn-mcp-mendoza forget-credentials` y volvé a correr el asistente.');
+    completed.push('credenciales');
+    if (!saved.email && !options.yes) {
+      const email = await askEmail(io);
+      if (email) {
+        try { await deps.saveCredentials({ ...saved, email }); io.say('✔ Correo institucional guardado.'); }
+        catch (error) { io.say(`⚠ ${error instanceof Error ? error.message : 'No se pudo guardar el correo.'}`); pending.push('correo'); }
+      } else pending.push('correo');
+    }
+  } else if (options.yes) {
+    io.say('Omitido: con --yes no se piden credenciales.');
+    pending.push('credenciales');
+  } else if (!(await io.confirm('¿Querés guardarlas ahora? Hacen falta para Autogestión y el correo.', true))) {
+    io.say('Podés cargarlas más tarde volviendo a ejecutar el asistente.');
+    pending.push('credenciales');
+  } else {
+    const username = (await io.prompt('Usuario (DNI): ')).trim();
+    const password = username ? await io.prompt('Contraseña (no se muestra): ', { secret: true }) : '';
+    if (!username || !password) {
+      io.say('⚠ Usuario y contraseña son obligatorios; no se guardó nada.');
+      pending.push('credenciales');
+    } else {
+      try {
+        const email = await askEmail(io);
+        await deps.saveCredentials({ username, password, ...(email ? { email } : {}) });
+        io.say('✔ Credenciales guardadas de forma segura en tu equipo.');
+        completed.push('credenciales');
+        if (!email) pending.push('correo');
+      } catch (error) {
+        io.say(`⚠ ${error instanceof Error ? error.message : 'No se pudieron guardar las credenciales.'}`);
+        pending.push('credenciales');
+      }
+    }
+  }
+
+  // ── Paso 3: sesión ────────────────────────────────────────────────────────────────────────────
+  io.say(step(3, 'Iniciar sesión en el Campus'));
   if (options.skipLogin) {
     io.say('Omitido por pedido tuyo.');
     pending.push('login');
@@ -111,8 +169,8 @@ export async function runWizard(options: WizardOptions, io: WizardIO, deps: Wiza
     completed.push('sesión');
   }
 
-  // ── Paso 3: clientes ──────────────────────────────────────────────────────────────────────────
-  io.say(step(3, 'Conectar con tu cliente de IA'));
+  // ── Paso 4: clientes ──────────────────────────────────────────────────────────────────────────
+  io.say(step(4, 'Conectar con tu cliente de IA'));
   if (options.skipRegister) {
     io.say('Omitido por pedido tuyo.');
     pending.push('clientes');
@@ -156,8 +214,8 @@ export async function runWizard(options: WizardOptions, io: WizardIO, deps: Wiza
     }
   }
 
-  // ── Paso 4: prueba real ───────────────────────────────────────────────────────────────────────
-  io.say(step(4, 'Probar que funciona'));
+  // ── Paso 5: prueba real ───────────────────────────────────────────────────────────────────────
+  io.say(step(5, 'Probar que funciona'));
   if (options.skipLogin) {
     io.say('Omitido (no se inició sesión).');
   } else {
@@ -190,8 +248,8 @@ export async function runWizard(options: WizardOptions, io: WizardIO, deps: Wiza
     }
   }
 
-  // ── Paso 5: listo ─────────────────────────────────────────────────────────────────────────────
-  io.say(step(5, 'Listo'));
+  // ── Paso 6: listo ─────────────────────────────────────────────────────────────────────────────
+  io.say(step(6, 'Listo'));
   if (pending.length === 0) io.say('✔ Instalación completa.');
   else io.say(`Quedó pendiente: ${pending.join(', ')}. Ejecutá \`utn-mcp-mendoza doctor\` para ver cómo resolverlo.`);
   io.say('\nReiniciá tu cliente de IA y probá preguntarle:');
@@ -209,6 +267,8 @@ export function defaultWizardDeps(overrides: Partial<WizardDeps> & Pick<WizardDe
     saveActiveCourses: ids => writeActiveCourseIds(ids),
     diagnose: options => runDoctor(options),
     register: id => registerClient(id),
+    getCredentials: () => CredentialStore.get(),
+    saveCredentials: credentials => CredentialStore.save(credentials),
     clients: CLIENTS,
     ...overrides
   };

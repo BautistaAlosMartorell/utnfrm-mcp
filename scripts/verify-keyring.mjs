@@ -30,6 +30,16 @@ try {
   assert.equal(secondProcess.status, 0, 'a new MCP process can reopen the system-protected session');
   await SessionStore.clear();
   assert.equal(SessionStore.exists(), false, 'logout removes the synthetic session');
+
+  const { CredentialStore } = await import('../dist/session/credential-store.js');
+  const credentials = { username: 'ci-synthetic-user', password: 'never-write-this-in-plain-text-either' };
+  await CredentialStore.save(credentials);
+  assert.deepEqual(await CredentialStore.get(), credentials, 'OS credential protection round-trips credentials');
+  for (const file of fs.readdirSync(sessionDir)) {
+    assert.equal(fs.readFileSync(path.join(sessionDir, file), 'utf8').includes(credentials.password), false, 'password is absent from disk');
+  }
+  await CredentialStore.clear();
+  assert.equal(await CredentialStore.get(), null, 'clear removes the synthetic credentials');
   console.log(`Native session-store check passed on ${process.platform}.`);
 } finally {
   delete process.env.UTN_MCP_SESSION_DIR;

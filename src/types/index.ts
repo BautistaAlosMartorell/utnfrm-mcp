@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CONSULTAS, CONSULTA_NAMES } from '../sysacad/consultas.js';
 
 // ==========================================
 // Tipos de Dominio
@@ -324,6 +325,62 @@ export const GetGradesInputSchema = z.object({
 
 // Perfil de Usuario
 export const WhoamiInputSchema = z.object({});
+
+// Autogestión (Sysacad)
+const SYSACAD_LEGAJO = z.string().trim().regex(/^\d{1,10}$/).optional()
+  .describe('Número de legajo, solo si tu cuenta tiene más de uno. Por defecto el primer legajo de alumno.');
+
+export const SysacadConsultarInputSchema = z.object({
+  consulta: z.enum(CONSULTA_NAMES).describe('Qué consultar en Autogestión: ' + CONSULTA_NAMES.map(name => `${name} (${CONSULTAS[name].label})`).join(', ') + '.'),
+  legajo: SYSACAD_LEGAJO
+});
+
+const MAIL_FOLDER = z.string().trim().min(1).max(100).default('INBOX').describe('Carpeta del correo: INBOX, Sent, Drafts o Trash.');
+
+export const MailListMessagesInputSchema = z.object({
+  folder: MAIL_FOLDER,
+  limit: z.number().int().min(1).max(50).default(20).describe('Cantidad de mensajes, los más recientes primero (máximo 50).'),
+  unseen_only: z.boolean().default(false).describe('true devuelve solo los no leídos.')
+});
+
+const MAIL_DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Usá el formato AAAA-MM-DD.');
+
+export const MailSearchInputSchema = z.object({
+  folders: z.array(z.string().trim().min(1).max(100)).max(10).optional().describe('Carpetas donde buscar. Si se omite, busca en todas (INBOX, Sent, Drafts, Trash).'),
+  from: z.string().trim().min(1).max(200).optional().describe('Remitente (parte del nombre o de la dirección).'),
+  to: z.string().trim().min(1).max(200).optional().describe('Destinatario.'),
+  subject: z.string().trim().min(1).max(200).optional().describe('Texto en el asunto.'),
+  text: z.string().trim().min(1).max(200).optional().describe('Texto en cualquier parte del mensaje (cabeceras y cuerpo).'),
+  since: MAIL_DATE.optional().describe('Desde esta fecha (inclusive).'),
+  before: MAIL_DATE.optional().describe('Antes de esta fecha.'),
+  unseen_only: z.boolean().default(false).describe('true limita a los no leídos.'),
+  limit: z.number().int().min(1).max(50).default(20).describe('Máximo de resultados, los más recientes primero (máximo 50).')
+});
+
+export const MailDeleteMessagesInputSchema = z.object({
+  folder: MAIL_FOLDER,
+  uids: z.array(z.number().int().positive()).min(1).max(50).describe('uids a mandar a la Papelera, tal como los devuelven mail_list_messages o mail_search (máximo 50 por llamada).')
+});
+
+export const MailRestoreMessagesInputSchema = z.object({
+  uids: z.array(z.number().int().positive()).min(1).max(50).describe('uids de la Papelera a recuperar, tal como los devuelve mail_search con folders ["Trash"] (máximo 50 por llamada).'),
+  folder: MAIL_FOLDER.describe('Carpeta de destino (por defecto INBOX).')
+});
+
+export const MailSetSeenInputSchema = z.object({
+  folder: MAIL_FOLDER,
+  uids: z.array(z.number().int().positive()).min(1).max(50).describe('uids a marcar (máximo 50 por llamada).'),
+  seen: z.boolean().describe('true marca como leídos; false como no leídos.')
+});
+
+export const MailReadMessageInputSchema = z.object({
+  uid: z.number().int().positive().describe('uid del mensaje, tal como lo devuelve mail_list_messages.'),
+  folder: MAIL_FOLDER
+});
+
+export const AutogestionAvisosInputSchema = z.object({});
+
+export const SysacadInscripcionEstadoInputSchema = z.object({ legajo: SYSACAD_LEGAJO });
 
 // Participantes
 export const ListParticipantsInputSchema = z.object({

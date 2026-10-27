@@ -20,7 +20,7 @@ El OCR no se ejecuta por defecto ni descarga modelos. Para una verificación loc
 
 ## Publicación
 
-Mantener la versión del paquete y la etiqueta Git alineadas. Adjuntar a la Release el `.tgz` generado por `npm pack`, calcular SHA-256 del archivo final y comprobar que la instalación limpia y el handshake MCP funcionan con ese mismo archivo. No publicar hasta que una revisión del historial y del paquete confirme que no contienen credenciales, sesiones, datos personales ni material académico privado.
+Mantener la versión del paquete y la etiqueta Git alineadas. Adjuntar a la Release el `.tgz` generado por `npm pack`, calcular SHA-256 del archivo final y comprobar que la instalación limpia y el handshake MCP funcionan con ese mismo archivo. Para npm: con la sesión iniciada (`npm login`), `npm publish --tag beta` mientras la versión sea prerelease, para que `latest` no apunte a una beta; `prepublishOnly` ya corre `verify` y `build`. Una versión estable se publica sin `--tag`. No publicar hasta que una revisión del historial y del paquete confirme que no contienen credenciales, sesiones, datos personales ni material académico privado.
 
 ## Continuar desde el historial público saneado
 
