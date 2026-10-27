@@ -50,12 +50,23 @@ export class CampusClient {
   private apiContext: APIRequestContext | null = null;
   private browser: Browser | null = null;
   private browserContext: BrowserContext | null = null;
+  /** Marca de la sesión con la que se crearon los contextos abiertos; si cambia, se descartan. */
+  private contextSessionMs: number | undefined;
+
+  /** Si la persona volvió a iniciar sesión con el MCP andando, descarta las cookies viejas y levanta el bloqueo por sesión vencida. */
+  private async adoptRenewedSession(): Promise<void> {
+    const savedMs = SessionStore.savedAt()?.getTime();
+    if (savedMs === undefined) return;
+    const renewed = campusRequestPolicy.clearAuthenticationBlockIfRenewed(savedMs);
+    if (renewed || (this.contextSessionMs !== undefined && savedMs > this.contextSessionMs)) await this.close();
+  }
 
   private async requestCampus(
     method: 'GET' | 'POST',
     pathOrUrl: string,
     form?: Record<string, string>
   ): Promise<CampusResponse> {
+    await this.adoptRenewedSession();
     campusRequestPolicy.assertAvailable();
     let target = resolveCampusUrl(pathOrUrl);
     let currentMethod = method;
@@ -170,6 +181,7 @@ export class CampusClient {
 
     if (!this.apiContext) {
       SessionStore.protectExistingSession();
+      this.contextSessionMs = SessionStore.savedAt()?.getTime();
       this.apiContext = await request.newContext({
         baseURL: CAMPUS_ORIGIN,
         storageState: await SessionStore.getPlaywrightStorageState(),
@@ -421,6 +433,7 @@ export class CampusClient {
     }
 
     if (!this.browserContext) {
+      this.contextSessionMs = SessionStore.savedAt()?.getTime();
       this.browserContext = await this.browser.newContext({
         storageState: await SessionStore.getPlaywrightStorageState()
       });
@@ -530,6 +543,7 @@ export class CampusClient {
       await this.browser.close().catch(() => null);
       this.browser = null;
     }
+    this.contextSessionMs = undefined;
   }
 }
 

@@ -4,6 +4,8 @@ Beta multiplataforma para consultar el Campus Virtual, Autogestión (Sysacad) y 
 
 **Solo lectura en Moodle y Autogestión:** no entrega tareas, no publica en foros, no se inscribe a nada. En el correo solo puede mover mensajes a la Papelera, recuperarlos y marcarlos como leídos o no leídos; nunca envía ni borra definitivamente. Hay una hoja corta en [Inicio rápido](INICIO-RAPIDO.txt).
 
+**¿Instalación en pocos pasos?** Una vez instalado el paquete (secciones 1 y 2, o la alternativa de npm), `utn-mcp-mendoza setup-wizard` hace el resto: revisa el equipo, abre el login, conecta tu cliente de IA y prueba que funciona.
+
 ## Antes de empezar
 
 - **Windows, Linux o macOS.**
@@ -99,7 +101,7 @@ Cuando macOS pregunte, permite que UTN FRM MCP use el Llavero de inicio de sesi�
 2. Escribe tu usuario y contraseña **solo en la ventana del Campus** que se abre. Al confirmar el acceso, la sesión se guarda y la ventana se cierra sola.
 3. Comprueba con `utn-mcp-mendoza status`.
 
-La sesión queda en el almacenamiento seguro del sistema y vence tras unas horas: vuelve a ejecutar `login` (o pide «renová mi sesión del Campus» a tu cliente, que usa `start_login`). La contraseña solo se guarda si la cargas en el asistente, cifrada por el sistema; `utn-mcp-mendoza forget-credentials` la elimina. Autogestión y el correo usan esas credenciales guardadas; el usuario del correo es la dirección completa que ves al entrar a Autogestión.
+La sesión queda en el almacenamiento seguro del sistema y vence tras unas horas: vuelve a ejecutar `login` (o pide «renová mi sesión del Campus» a tu cliente, que usa `start_login`). No hace falta reiniciar el cliente de IA: el MCP detecta la sesión renovada y retoma solo. `logout` borra la sesión pero **no** la contraseña guardada; para eso es `forget-credentials`. La contraseña solo se guarda si la cargas en el asistente, cifrada por el sistema; `utn-mcp-mendoza forget-credentials` la elimina. Autogestión y el correo usan esas credenciales guardadas; el usuario del correo es la dirección completa que ves al entrar a Autogestión.
 
 ## 4. Conecta el servidor a tu cliente
 

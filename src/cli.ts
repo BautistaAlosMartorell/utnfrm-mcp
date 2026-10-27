@@ -9,6 +9,7 @@ import { SessionStore } from './session/session-store.js';
 import { handleWhoami } from './tools/whoami.js';
 import { approveAssignmentInConsole } from './cli/assignment-approval.js';
 import { debugErrorDetails, describeCliError } from './client/friendly-errors.js';
+import { sanitizeCampusErrorMessage } from './client/error-sanitizer.js';
 import readline from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { CredentialStore } from './session/credential-store.js';
@@ -125,6 +126,7 @@ async function main(): Promise<void> {
           if (age.level !== 'none') console.log('Sesión ' + age.text + '.');
         } else {
           console.log('Estado en Campus Virtual: EXPIRADA O INVÁLIDA');
+          if (check.error) console.log('Motivo: ' + sanitizeCampusErrorMessage(check.error));
           console.log('La sesión local se conservó. Ejecutá utn-mcp-mendoza login para renovarla.');
           process.exitCode = 1;
         }

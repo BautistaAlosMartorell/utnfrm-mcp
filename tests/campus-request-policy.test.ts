@@ -78,6 +78,26 @@ describe('Campus request policy', () => {
     await expect(policy.run(async () => 'after')).rejects.toThrow(/HTTP 429/i);
   });
 
+  it('resumes after an authentication block only when the session was saved again afterwards', async () => {
+    const policy = new CampusRequestPolicy({ maxConcurrent: 1, minIntervalMs: 0, maxQueued: 0 });
+    policy.block('authentication');
+
+    expect(policy.clearAuthenticationBlockIfRenewed(Date.now() - 60_000)).toBe(false);
+    await expect(policy.run(async () => 'stale')).rejects.toThrow(/no hace falta reiniciar/i);
+
+    expect(policy.clearAuthenticationBlockIfRenewed(Date.now() + 1000)).toBe(true);
+    await expect(policy.run(async () => 'renewed')).resolves.toBe('renewed');
+  });
+
+  it('never lifts permission, throttle or challenge blocks on its own', async () => {
+    for (const reason of ['authorization', 'rate-limit', 'security-challenge'] as const) {
+      const policy = new CampusRequestPolicy({ maxConcurrent: 1, minIntervalMs: 0, maxQueued: 0 });
+      policy.block(reason);
+      expect(policy.clearAuthenticationBlockIfRenewed(Date.now() + 60_000)).toBe(false);
+      await expect(policy.run(async () => 'x')).rejects.toThrow();
+    }
+  });
+
   it('allows only known Moodle read-only POST endpoints through browser navigation', () => {
     const ajaxUrl = new URL('https://campusvirtual.frm.utn.edu.ar/lib/ajax/service.php');
     const readPayload = JSON.stringify([{ methodname: 'core_courseformat_get_state' }]);

@@ -34,6 +34,7 @@ export class CampusRequestPolicy {
   private readonly waiters: Waiter[] = [];
   private nextStartAt = 0;
   private blockedReason: string | undefined;
+  private blockedAt = 0;
 
   constructor(private readonly options: CampusRequestPolicyOptions) {
     if (options.maxConcurrent !== 1) {
@@ -77,7 +78,20 @@ export class CampusRequestPolicy {
   }
 
   block(reason: 'authentication' | 'authorization' | 'rate-limit' | 'security-challenge'): void {
-    this.blockedReason ||= reason;
+    if (this.blockedReason) return;
+    this.blockedReason = reason;
+    this.blockedAt = Date.now();
+  }
+
+  /**
+   * Levanta el bloqueo por sesión vencida si la sesión se guardó de nuevo después de que ocurrió.
+   * Los demás bloqueos (permisos, 429, desafíos de seguridad) nunca se levantan solos.
+   */
+  clearAuthenticationBlockIfRenewed(sessionSavedAtMs: number): boolean {
+    if (this.blockedReason !== 'authentication' || sessionSavedAtMs <= this.blockedAt) return false;
+    this.blockedReason = undefined;
+    this.blockedAt = 0;
+    return true;
   }
 
   assertAvailable(): void {
@@ -91,7 +105,7 @@ export class CampusRequestPolicy {
   private throwIfBlocked(): void {
     if (!this.blockedReason) return;
     const message = this.blockedReason === 'authentication'
-      ? 'Se detuvieron las solicitudes al Campus por una respuesta de autenticación. Revisá la sesión y reiniciá el MCP después de volver a iniciar sesión.'
+      ? 'Se detuvieron las solicitudes al Campus por una respuesta de autenticación. La sesión venció: volvé a iniciar sesión (start_login o `utn-mcp-mendoza login`). No hace falta reiniciar el MCP: se retoma solo cuando la sesión se renueve.'
       : this.blockedReason === 'authorization'
         ? 'Se detuvieron las solicitudes al Campus por una respuesta de permisos (403). No se volverá a consultar en esta sesión del MCP.'
         : this.blockedReason === 'rate-limit'
