@@ -11,6 +11,7 @@ import { loginInteractive } from './session/auth.js';
 import { SessionStore } from './session/session-store.js';
 import { handleWhoami } from './tools/whoami.js';
 import { approveAssignmentInConsole } from './cli/assignment-approval.js';
+import { doctorExitCode, formatDoctor, runDoctor, systemProbes } from './cli/doctor.js';
 import { debugErrorDetails, describeCliError } from './client/friendly-errors.js';
 
 function registerInClient(label: string, binary: string, args: string[]): void {
@@ -85,6 +86,16 @@ async function main(): Promise<void> {
           console.log('La sesión local se conservó. Ejecutá utn-mcp-mendoza login para renovarla.');
           process.exitCode = 1;
         }
+      } finally {
+        await campusClient.close();
+      }
+      return;
+    }
+    case 'doctor': {
+      try {
+        const checks = await runDoctor(systemProbes);
+        console.log(formatDoctor(checks));
+        process.exitCode = doctorExitCode(checks);
       } finally {
         await campusClient.close();
       }
@@ -192,6 +203,7 @@ async function main(): Promise<void> {
       console.log('  utn-mcp-mendoza approve-assignment <id> Revisa y aprueba una entrega desde una terminal local');
       console.log('  utn-mcp-mendoza logout      Elimina la sesión local');
       console.log('  utn-mcp-mendoza status      Comprueba la sesión sin eliminarla');
+      console.log('  utn-mcp-mendoza doctor      Diagnostica Node, Chromium, sesión y clientes registrados');
       console.log('  utn-mcp-mendoza whoami      Muestra tu perfil');
       console.log('  utn-mcp-mendoza setup       Muestra bloques MCP');
       console.log('  utn-mcp-mendoza setup-codex Registra el MCP en Codex (--print solo imprime el comando)');
