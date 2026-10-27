@@ -74,8 +74,8 @@ try {
   if (stdio.status !== 0) throw new Error(stdio.stderr || 'STDIO MCP smoke check failed.');
   const protocolMessages = stdio.stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
   const toolList = protocolMessages.find(message => message.id === 2)?.result?.tools;
-  if (!Array.isArray(toolList) || toolList.length !== 31) {
-    throw new Error('STDIO MCP smoke check did not discover all 31 tools.');
+  if (!Array.isArray(toolList) || toolList.length !== 40) {
+    throw new Error('STDIO MCP smoke check did not discover all 40 tools.');
   }
   const readFileTool = toolList.find(tool => tool.name === 'read_file');
   const readFileProperties = readFileTool?.inputSchema?.properties || {};
@@ -151,8 +151,8 @@ try {
   if (installedStdio.status !== 0) throw new Error(installedStdio.stderr || 'Installed package STDIO smoke check failed.');
   const installedMessages = installedStdio.stdout.trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
   const installedTools = installedMessages.find(message => message.id === 2)?.result?.tools;
-  if (!Array.isArray(installedTools) || installedTools.length !== 31) {
-    throw new Error('Installed npm package did not expose all 31 MCP tools.');
+  if (!Array.isArray(installedTools) || installedTools.length !== 40) {
+    throw new Error('Installed npm package did not expose all 40 MCP tools.');
   }
 
   const browserSmoke = spawnSync(process.execPath, ['--input-type=module', '-e',
