@@ -131,8 +131,8 @@ export async function extractPdfLayout(buffer: Buffer, options: { page?: number;
     disableFontFace: true,
     useSystemFonts: false,
     verbosity: 0,
-    standardFontDataUrl: `${path.join(packageDir, 'standard_fonts')}${path.sep}`,
-    cMapUrl: `${path.join(packageDir, 'cmaps')}${path.sep}`,
+    standardFontDataUrl: `${path.join(packageDir, 'standard_fonts')}/`,
+    cMapUrl: `${path.join(packageDir, 'cmaps')}/`,
     cMapPacked: true
   });
   const timer = setTimeout(() => { void task.destroy(); }, options.timeoutMs ?? 60_000);
