@@ -14,6 +14,7 @@ function deps(overrides: Partial<SessionToolDeps> = {}): SessionToolDeps {
     savedAt: () => hoursAgo(2),
     exists: () => true,
     browserInstalled: () => true,
+    serviceLogins: { credentials: async () => null, verifyMail: async () => undefined, verifyAutogestion: async () => undefined, hasSession: async () => false },
     now: () => NOW,
     ...overrides
   };

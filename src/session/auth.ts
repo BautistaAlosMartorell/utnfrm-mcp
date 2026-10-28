@@ -1,6 +1,10 @@
 import { installChromium } from '../cli/install-browser.js';
 import { browserInstalled } from './browser.js';
+import { CredentialStore } from './credential-store.js';
 import { runBrowserLogin, type BrowserLoginResult } from './browser-login.js';
+
+/** Dos sitios para entrar a mano: más tiempo que con el Campus solo. */
+const LOGIN_TIMEOUT_MS = 300_000;
 
 /**
  * Inicio de sesión desde la terminal. No pide pulsar Enter ni volver a la terminal: se abre el Campus,
@@ -16,17 +20,17 @@ export async function loginInteractive(): Promise<boolean> {
     console.log('Falta el navegador que se usa para iniciar sesión. Lo instalo ahora (unos 150 MB; puede tardar un par de minutos)…\n');
     const status = installChromium();
     if (status !== 0 || !browserInstalled()) {
-      console.error('\n[Error] No se pudo instalar el navegador. Probá: utn-mcp-mendoza install-browser (en Linux, si pide permisos: utn-mcp-mendoza install-browser --with-deps).');
+      console.error('\n[Error] No se pudo instalar el navegador. Probá: utn-mcp-mendoza install-browser (en Linux, si Chromium no abre por falta de bibliotecas: utn-mcp-mendoza install-deps).');
       return false;
     }
     console.log('\n✔ Navegador instalado.\n');
   }
 
-  console.log('Se va a abrir una ventana con la página de acceso del Campus.');
-  console.log('1. Escribí tu usuario y contraseña ahí (este programa nunca los ve).');
-  console.log('2. Eso es todo: la ventana se cierra sola cuando entrás. No hace falta volver a esta terminal.\n');
+  console.log('Se va a abrir una ventana con tres pestañas: el Campus, Autogestión y el Webmail.');
+  console.log('1. Escribí tu usuario y contraseña en cada una (este programa nunca los ve; si guardaste credenciales con setup-wizard, el Campus se renueva solo y el correo usa IMAP).');
+  console.log('2. En Autogestión elegí tu legajo. La ventana se cierra sola cuando entrás a las dos.\n');
 
-  const result = await runBrowserLogin({ onProgress: message => console.log(message) });
+  const result = await runBrowserLogin({ sysacad: true, webmail: true, timeoutMs: LOGIN_TIMEOUT_MS, onProgress: message => console.log(message) });
   if (!result.ok) {
     console.error(`\n[Error] ${result.message}`);
     return false;
@@ -37,6 +41,25 @@ export async function loginInteractive(): Promise<boolean> {
 }
 
 /** Inicio de sesión desde el cliente de IA (herramienta start_login): igual que el anterior, sin consola. */
-export async function loginInBackground(timeoutMs = 180000): Promise<BrowserLoginResult> {
-  return runBrowserLogin({ timeoutMs });
+export async function loginInBackground(timeoutMs = LOGIN_TIMEOUT_MS): Promise<BrowserLoginResult> {
+  return runBrowserLogin({ sysacad: true, webmail: true, timeoutMs });
+}
+
+let autoLoginInFlight: Promise<boolean> | undefined;
+
+/**
+ * Renueva la sesión del Campus con las credenciales guardadas (si las hay), sin ventana. Un solo intento a la vez;
+ * `false` si no hay credenciales, el navegador falta o el Campus rechaza el acceso: ahí queda el login manual.
+ */
+export function autoLogin(timeoutMs = 60_000): Promise<boolean> {
+  autoLoginInFlight ??= (async () => {
+    try {
+      const credentials = await CredentialStore.get();
+      if (!credentials || !browserInstalled()) return false;
+      return (await runBrowserLogin({ headless: true, credentials, timeoutMs })).ok;
+    } catch {
+      return false;
+    }
+  })().finally(() => { autoLoginInFlight = undefined; });
+  return autoLoginInFlight;
 }

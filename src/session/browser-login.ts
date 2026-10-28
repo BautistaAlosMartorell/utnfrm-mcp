@@ -1,5 +1,5 @@
 import { chromium, type BrowserContext, type Page } from 'playwright';
-import { CAMPUS_ORIGIN, PATHS } from '../config.js';
+import { CAMPUS_ORIGIN, PATHS, SYSACAD_LOGIN_URL, WEBMAIL_URL } from '../config.js';
 import { describeCliError } from '../client/friendly-errors.js';
 import { SessionStore } from './session-store.js';
 
@@ -50,6 +50,14 @@ export interface BrowserLoginOptions {
   /** Tiempo para que Moodle termine de fijar sus cookies antes de guardar. */
   settleMs?: number;
   headless?: boolean;
+  /** Abre también Autogestión en otra pestaña y espera su home; se guardan las cookies de las dos en una sola sesión. */
+  sysacad?: boolean;
+  sysacadLoginUrl?: string;
+  /** Abre también el Webmail (Roundcube) en otra pestaña. */
+  webmail?: boolean;
+  webmailUrl?: string;
+  /** Si se pasan, el formulario se completa solo (renovación automática); sin ellas la persona escribe en la ventana. */
+  credentials?: { username: string; password: string };
   campusOrigin?: string;
   loginUrl?: string;
   onProgress?: (message: string) => void;
@@ -69,6 +77,25 @@ async function probe(page: Page): Promise<LoginInfo | undefined> {
   } catch {
     return undefined; // la página está navegando
   }
+}
+
+/** Autogestión (los enlaces del menú) y el Webmail (ya dentro del correo) pueden quedar abiertos en cualquier pestaña. */
+const SITE_READY = {
+  autogestion: (candidate: Page) => candidate.locator('a[href*="iRv"]').count().then(count => count > 0),
+  webmail: (candidate: Page) => candidate.evaluate(() => (window as unknown as { rcmail?: { env?: { task?: string } } }).rcmail?.env?.task === 'mail')
+};
+
+async function siteOpen(context: BrowserContext, site: keyof typeof SITE_READY): Promise<boolean> {
+  for (const candidate of context.pages()) {
+    if (await SITE_READY[site](candidate).catch(() => false)) return true;
+  }
+  return false;
+}
+
+async function missingSites(context: BrowserContext, wanted: Array<keyof typeof SITE_READY>): Promise<string[]> {
+  const missing: string[] = [];
+  for (const site of wanted) if (!await siteOpen(context, site)) missing.push(site === 'webmail' ? 'Webmail' : 'Autogestión');
+  return missing;
 }
 
 async function showBanner(page: Page, text: string): Promise<void> {
@@ -101,15 +128,38 @@ export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promis
     await options.prepare?.(context);
     const page = await context.newPage();
     await page.goto(loginUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    options.onProgress?.('Esperando que inicies sesión en la ventana del navegador…');
+    const wanted: Array<keyof typeof SITE_READY> = [...(options.sysacad ? ['autogestion' as const] : []), ...(options.webmail ? ['webmail' as const] : [])];
+    if (options.sysacad) await (await context.newPage()).goto(options.sysacadLoginUrl ?? SYSACAD_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => undefined);
+    if (options.webmail) await (await context.newPage()).goto(options.webmailUrl ?? WEBMAIL_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => undefined);
+    if (options.credentials) {
+      await page.fill('#username', options.credentials.username);
+      await page.fill('#password', options.credentials.password);
+      await page.click('#loginbtn');
+    } else {
+      options.onProgress?.('Esperando que inicies sesión en la ventana del navegador…');
+    }
 
+    let campusSeen = false;
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       if (page.isClosed() || !browser.isConnected()) {
         return { ok: false, reason: 'closed', message: 'Se cerró la ventana antes de terminar de iniciar sesión. Volvé a intentarlo y esperá a que se cierre sola.' };
       }
       const info = await probe(page);
-      if (info && isLoggedIn(info)) {
+      if (options.credentials && !(info && isLoggedIn(info))) {
+        // Nunca se insiste con una clave rechazada ni se intenta pasar un desafío de seguridad.
+        const rejected = await page.locator('#loginerrormessage, .loginerrors').count().catch(() => 0);
+        if (rejected > 0) return { ok: false, reason: 'error', message: 'El Campus rechazó el usuario o la contraseña guardados. Actualizalos con utn-mcp-mendoza setup-wizard.' };
+        const challenge = await page.content().then(html => /cf-chl-|captcha-container|g-recaptcha/i.test(html), () => false);
+        if (challenge) return { ok: false, reason: 'error', message: 'El Campus presentó un desafío de seguridad; iniciá sesión a mano con utn-mcp-mendoza login.' };
+      }
+      const missing = info && isLoggedIn(info) ? await missingSites(context, wanted) : [];
+      if (info && isLoggedIn(info) && missing.length > 0) {
+        const note = `Campus listo. Falta ${missing.join(' y ')}: iniciá sesión en la otra pestaña${missing.includes('Autogestión') ? ' y elegí tu legajo' : ''}.`;
+        if (!campusSeen) options.onProgress?.(`✔ ${note}`);
+        campusSeen = true;
+        await showBanner(page, note);
+      } else if (info && isLoggedIn(info)) {
         options.onProgress?.('✔ Detecté tu inicio de sesión.');
         // Se toma una copia enseguida (por si cierran la ventana) y otra tras unos instantes con las cookies finales.
         let state = await context.storageState();
@@ -120,6 +170,10 @@ export async function runBrowserLogin(options: BrowserLoginOptions = {}): Promis
         return { ok: true, reason: 'saved', message: 'Sesión guardada.' };
       }
       await sleep(pollMs);
+    }
+    if (campusSeen) {
+      await save(await context.storageState());
+      return { ok: true, reason: 'saved', message: 'Sesión del Campus guardada. Lo demás (Autogestión o Webmail) no se completó a tiempo: volvé a ejecutar login si lo necesitás.' };
     }
     return { ok: false, reason: 'timeout', message: 'No se completó el inicio de sesión a tiempo. Volvé a intentarlo.' };
   } catch (error) {
