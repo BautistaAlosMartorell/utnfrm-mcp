@@ -12,13 +12,16 @@ export function describeCliError(error: unknown): string {
 
   if (/Executable doesn't exist|browserType\.launch|npx playwright install|Looks like Playwright was just installed/i.test(raw)) {
     return 'Falta el navegador Chromium que usa este MCP (o es de otra versión). Ejecutá `utn-mcp-mendoza install-browser` y volvé a intentar. ' +
-      'En Linux, si pide dependencias del sistema, usá `utn-mcp-mendoza install-browser --with-deps` (requiere sudo).';
+      'En Linux, si pide dependencias del sistema, ejecutá `utn-mcp-mendoza install-deps` (apt, dnf o pacman; con sudo, doas o pkexec).';
+  }
+  if (/error while loading shared libraries|Host system is missing dependencies/i.test(raw)) {
+    return 'Al navegador le faltan bibliotecas del sistema. En Linux ejecutá `utn-mcp-mendoza install-deps` (apt, dnf o pacman; con sudo, doas o pkexec).';
   }
   if (/Missing X server|\$DISPLAY|no DISPLAY|headed browser without having a XServer/i.test(raw)) {
     return 'No hay un entorno gráfico disponible para abrir el navegador de inicio de sesión. Ejecutá `login` desde una sesión de escritorio.';
   }
   if (/secret-tool|libsecret|keyring|Secret Service|org\.freedesktop\.secrets/i.test(raw)) {
-    return 'No se pudo usar el almacén seguro de contraseñas del sistema. En Linux instalá `libsecret-tools` y `gnome-keyring`, ' +
+    return 'No se pudo usar el almacén seguro de contraseñas del sistema. En Linux instalá `secret-tool` y `gnome-keyring` (apt: `libsecret-tools gnome-keyring`; dnf y pacman: `libsecret gnome-keyring`), ' +
       'y ejecutá el comando desde una sesión gráfica con el almacén desbloqueado.';
   }
   if (/UTN_MCP_[A-Z_]+ debe ser/i.test(raw)) {

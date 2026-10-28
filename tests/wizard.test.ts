@@ -91,7 +91,7 @@ describe('setup wizard', () => {
     const failing = harness({ checks: missing, deps: { installBrowser: vi.fn(() => 1) } });
     const result = await runWizard({ yes: true }, failing.io, failing.deps);
     expect(result.ok).toBe(false);
-    expect(failing.text()).toMatch(/--with-deps/);
+    expect(failing.text()).toMatch(/install-deps/);
   });
 
   it('logs in when there is no session and stops if the login is not completed', async () => {
