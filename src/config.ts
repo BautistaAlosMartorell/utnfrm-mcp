@@ -33,6 +33,13 @@ export const SECURE_STORAGE_STATE_PATH = path.join(SESSION_DIR, 'storageState.en
 // URL base del Campus Virtual UTN Mendoza
 export const CAMPUS_ORIGIN = 'https://campusvirtual.frm.utn.edu.ar';
 
+// Autogestión (Sysacad): la home no lleva token en la URL, la sesión vive en cookies.
+export const SYSACAD_LOGIN_URL = 'https://sysacad.frm.utn.edu.ar/login.php';
+export const SYSACAD_HOME_URL = 'http://autogestion5.frm.utn.edu.ar/academico3/';
+
+// Webmail de alumnos (Roundcube): la sesión vive en cookies; sirve de alternativa al IMAP sin contraseña guardada.
+export const WEBMAIL_URL = 'https://alumnos.frm.utn.edu.ar/webmail2/';
+
 // Rutas habituales de Moodle
 export const PATHS = {
   login: '/login/index.php',

@@ -1,4 +1,4 @@
-import { listMessages, moveToTrash, readMessage, restoreFromTrash, searchMessages, setSeen, type MailMessage, type MailSearchHit, type MailSummary } from '../mail/client.js';
+import { listMessages, moveToTrash, readMessage, restoreFromTrash, searchMessages, setSeen, type MailMessage, type MailSearchHit, type MailSummary } from '../mail/backend.js';
 
 export const handleMailListMessages = (input: { folder: string; limit: number; unseen_only: boolean }): Promise<{ folder: string; messages: MailSummary[] }> =>
   listMessages({ folder: input.folder, limit: input.limit, unseenOnly: input.unseen_only }).then(messages => ({ folder: input.folder, messages }));
