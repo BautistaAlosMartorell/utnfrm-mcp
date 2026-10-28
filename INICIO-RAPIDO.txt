@@ -1,106 +1,78 @@
 UTN FRM MCP — GUÍA RÁPIDA PARA ESTUDIANTES
-Beta 2.1.0-beta.1 | Windows, Linux y macOS
+Beta 2.1.1 | Windows, Linux y macOS
 
-QUÉ ES
-Conecta Codex, Claude Code u OpenCode con el Campus Virtual de UTN Mendoza para consultar información que tu cuenta ya puede ver.
+Conecta Codex, Claude Code u OpenCode con el Campus Virtual, Autogestión y el correo de UTN Mendoza para consultar lo que tu cuenta ya puede ver. Es una beta de solo lectura: no entrega tareas, no escribe en foros ni se inscribe a nada (en el correo solo mueve a la Papelera y marca leído).
+La guía completa está en el README: https://github.com/BautistaAlosMartorell/utnfrm-mcp (carpeta docs/)
 
-IMPORTANTE: es una beta de solo lectura. No puede entregar tareas, escribir en foros, votar ni agregar eventos. Todas las escrituras en Moodle están deshabilitadas.
-
-1. PREPARA TU COMPUTADORA
-Necesitas Node.js 22.13 o posterior y un cliente de IA con soporte MCP ya instalado: Codex, Claude Code u OpenCode (instálalo con su documentación oficial).
-Node.js: https://nodejs.org/
-
-Abre una terminal nueva y comprueba:
+1. REQUISITOS
+Node.js 22.13 o posterior (https://nodejs.org/) y un cliente de IA con MCP ya instalado. Abre una terminal nueva y comprueba:
   node --version
   codex --version       (o: claude --version / opencode --version)
 
-2. DESCARGA LOS ARCHIVOS
-Abre la Release:
-https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/tag/v2.1.0-beta.1
-
-En “Assets”, descarga estos tres archivos:
-  utn-mcp-mendoza-2.1.0-beta.1.tgz
-  INICIO-RAPIDO.txt
-  utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256
-
-Guárdalos juntos en Descargas, dentro de una carpeta llamada “utn-mcp-beta”.
-No descargues “Source code”.
-
-3. ABRE UNA TERMINAL EN ESA CARPETA
-Windows — PowerShell:
-  cd "$HOME\Downloads\utn-mcp-beta"
-
-Linux o macOS — Terminal:
-  cd ~/Downloads/utn-mcp-beta
-
-Si aparece un error de carpeta inexistente, revisa que hayas guardado los tres archivos en esa ubicación.
-
-4. COMPRUEBA E INSTALA
-
-Windows — PowerShell:
-  $esperado = (Get-Content .\utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256 -Raw).Trim().Split()[0]
-  $obtenido = (Get-FileHash .\utn-mcp-mendoza-2.1.0-beta.1.tgz -Algorithm SHA256).Hash.ToLower()
-  if ($obtenido -eq $esperado) { "OK: archivo verificado" } else { "ERROR: vuelve a descargarlo" }
-  npm install --global .\utn-mcp-mendoza-2.1.0-beta.1.tgz
+2. INSTALA
+Opción A, con npm:
+  npm install --global utn-mcp-mendoza@beta
   utn-mcp-mendoza install-browser
 
-Linux — Ubuntu o Debian:
-  sha256sum -c utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256
-  sudo apt-get update
-  sudo apt-get install -y libsecret-tools gnome-keyring
-  npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
-  utn-mcp-mendoza install-browser
+Opción B, descarga verificada. De https://github.com/BautistaAlosMartorell/utnfrm-mcp/releases/tag/v2.1.1 (sección “Assets”, no “Source code”) guarda en Descargas, en una carpeta “utn-mcp-beta”: utn-mcp-mendoza-2.1.1.tgz y utn-mcp-mendoza-2.1.1.tgz.sha256. Luego, en esa carpeta:
 
-Usa una sesión gráfica normal y mantén desbloqueado el almacén de contraseñas. Otras distribuciones necesitan un proveedor Secret Service equivalente. Sin él, la sesión no se guarda de forma segura.
+  Windows — PowerShell:
+    cd "$HOME\Downloads\utn-mcp-beta"
+    $esperado = (Get-Content .\utn-mcp-mendoza-2.1.1.tgz.sha256 -Raw).Trim().Split()[0]
+    $obtenido = (Get-FileHash .\utn-mcp-mendoza-2.1.1.tgz -Algorithm SHA256).Hash.ToLower()
+    if ($obtenido -eq $esperado) { "OK: archivo verificado" } else { "ERROR: vuelve a descargarlo" }
+    npm install --global .\utn-mcp-mendoza-2.1.1.tgz
+    utn-mcp-mendoza install-browser
 
-macOS:
-  shasum -a 256 -c utn-mcp-mendoza-2.1.0-beta.1.tgz.sha256
-  npm install --global ./utn-mcp-mendoza-2.1.0-beta.1.tgz
-  utn-mcp-mendoza install-browser
+  Linux:
+    cd ~/Downloads/utn-mcp-beta
+    sha256sum -c utn-mcp-mendoza-2.1.1.tgz.sha256
+    npm install --global ./utn-mcp-mendoza-2.1.1.tgz
+    utn-mcp-mendoza install-browser
 
-Si la verificación muestra “ERROR”, vuelve a descargar el instalador. En macOS, permite el acceso al Llavero si te lo pregunta.
+  macOS:
+    cd ~/Downloads/utn-mcp-beta
+    shasum -a 256 -c utn-mcp-mendoza-2.1.1.tgz.sha256
+    npm install --global ./utn-mcp-mendoza-2.1.1.tgz
+    utn-mcp-mendoza install-browser
 
-5. INICIA SESIÓN EN EL CAMPUS
+Si la verificación muestra “ERROR”, vuelve a descargar. En macOS, permite el acceso al Llavero si te lo pregunta.
+
+Solo Linux: antes instala el almacén seguro, en una sesión gráfica normal y desbloqueada:
+    Ubuntu / Debian:  sudo apt-get update && sudo apt-get install -y libsecret-tools gnome-keyring
+    Fedora:           sudo dnf install -y libsecret gnome-keyring
+    Arch:             sudo pacman -S --needed libsecret gnome-keyring
+Si Chromium no abre por falta de bibliotecas: “utn-mcp-mendoza install-deps” (por pasos, muestra el comando y pide confirmación).
+
+3. INICIA SESIÓN
   utn-mcp-mendoza login
+Se abre una ventana con tres pestañas: Campus, Autogestión y Webmail. Escribe tu contraseña solo ahí y elige tu legajo en Autogestión; cuando entras a las tres (unos 5 minutos), las sesiones se guardan y la ventana se cierra sola. Comprueba con:
+  utn-mcp-mendoza status      (Campus)
+  utn-mcp-mendoza doctor      (los tres sitios)
 
-Se abrirá una ventana del navegador en el Campus. Escribe tu contraseña solamente en esa página oficial. No hace falta volver a la terminal ni pulsar nada: cuando entras, la sesión se guarda y la ventana se cierra sola (si falta el navegador, se instala solo). Después ejecuta:
-  utn-mcp-mendoza status
+Así el MCP nunca ve tu contraseña: solo guarda cookies cifradas. Si prefieres que renueve la sesión solo y que el correo use IMAP, carga usuario, contraseña y correo con “utn-mcp-mendoza setup-wizard” (opcional, cifrados por tu sistema; se borran con “utn-mcp-mendoza forget-credentials”). Si la sesión vence, repite “login”; no reinstales.
 
-Por defecto el MCP no guarda tu contraseña: solo la guarda, cifrada con el almacén seguro de tu equipo, si la cargas en el asistente (opcional; se borra con “utn-mcp-mendoza forget-credentials”). Si la sesión vence otro día, vuelve a ejecutar “utn-mcp-mendoza login”; no reinstales.
-
-6. CONECTA TU CLIENTE
-Ejecuta el comando de tu cliente. Registra el MCP por ti y deja deshabilitadas las entregas:
+4. CONECTA TU CLIENTE
   Codex:       utn-mcp-mendoza setup-codex
   Claude Code: utn-mcp-mendoza setup-claude
   OpenCode:    utn-mcp-mendoza setup-opencode
+Comprueba que aparezca “utn-mendoza” (codex mcp list | claude mcp list | opencode mcp list) y reinicia el cliente. Con --print solo muestra el comando. Si ya estaba registrado, quítalo primero (ver DESINSTALAR).
 
-Comprueba que aparezca “utn-mendoza” y reinicia el cliente:
-  codex mcp list | claude mcp list | opencode mcp list
+(Atajo: “utn-mcp-mendoza setup-wizard” hace los pasos 3 y 4 por ti.)
 
-Si prefieres ver el comando sin ejecutarlo, agrega --print (por ejemplo: utn-mcp-mendoza setup-claude --print).
-Si ya estaba registrado, el cliente lo avisa y no lo reemplaza: quítalo primero (ver “DESINSTALAR”).
-Si el cliente no se encuentra en el PATH, el comando muestra la línea completa para ejecutarla a mano.
-
-7. PRUEBA
-En tu cliente puedes escribir:
+5. PRUEBA
   Lista mis materias y las tareas próximas. Si no hay resultados, dime que la lista está vacía; si hubo un error de acceso, explícame cuál.
 
-También puedes pedir consultar consignas, documentos, calificaciones, foros y calendario. La cuenta debe tener acceso a esos datos.
-
-QUÉ ESTÁ VALIDADO
-La instalación, el arranque MCP, el almacenamiento seguro de una sesión de prueba y Chromium se verifican automáticamente en Windows, Linux y macOS. Windows tiene validación previa. Linux se probó a mano con una cuenta real (inicio de sesión y consultas desde Claude Code y OpenCode). En macOS todavía falta probar el inicio de sesión y las consultas con cuentas reales; por eso esta beta necesita estudiantes que la prueben. El registro con setup-codex y los comandos setup-claude y setup-opencode en Windows y macOS tampoco se probaron a mano todavía.
-
-NO intentes entregar tareas ni escribir en el Campus: todas las escrituras están deshabilitadas.
+“utn-mcp-mendoza --help” lista todos los comandos.
 
 DESINSTALAR
   utn-mcp-mendoza logout
+  utn-mcp-mendoza forget-credentials
   codex mcp remove utn-mendoza                (si usaste Codex)
   claude mcp remove utn-mendoza --scope user  (si usaste Claude Code)
   opencode mcp remove utn-mendoza             (si usaste OpenCode)
   npm uninstall --global utn-mcp-mendoza
 
 SI ALGO FALLA
-Comparte con quien te dio la beta: sistema operativo y versión, resultado de “node --version”, el paso que estabas haciendo y el mensaje de error.
-No envíes contraseñas, cookies, archivos de sesión, capturas del Campus ni datos académicos privados.
-
-\n
+Ejecuta “utn-mcp-mendoza doctor” y comparte con quien te dio la beta: sistema operativo y versión, “node --version”, el paso y el mensaje de error. No envíes contraseñas, cookies, archivos de sesión, capturas del Campus ni datos académicos.
+Qué está probado y qué no: ver docs/soporte.md en el repositorio (“Qué está probado”).
