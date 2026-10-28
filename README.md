@@ -1,4 +1,20 @@
+<div align="center">
+
+<img src="./logos/logo.svg" alt="UTN FRM MCP logo" width="120" />
+
 # UTN FRM MCP
+
+**Campus, Autogestión y correo de UTN Mendoza, desde tu cliente de IA**
+
+[![CI](https://github.com/BautistaAlosMartorell/utnfrm-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/BautistaAlosMartorell/utnfrm-mcp/actions/workflows/ci.yml)
+[![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A522.13-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![MCP](https://img.shields.io/badge/MCP-server-000000)](https://modelcontextprotocol.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+</div>
+
+---
 
 Servidor [MCP](https://modelcontextprotocol.io/) para consultar el Campus Virtual, Autogestión (Sysacad) y el correo institucional de UTN Facultad Regional Mendoza desde Codex, Claude Code u OpenCode. Proyecto independiente y no oficial, en beta.
 
