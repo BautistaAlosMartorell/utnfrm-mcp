@@ -3,6 +3,7 @@ import { campusClient } from '../client/campus-client.js';
 import { sanitizeCampusErrorMessage } from '../client/error-sanitizer.js';
 import { loginInBackground } from './auth.js';
 import { SessionStore } from './session-store.js';
+import { checkServiceLogin, defaultServiceLoginDeps, type ServiceLogin, type ServiceLoginDeps } from './service-logins.js';
 import { browserInstalled } from './browser.js';
 
 /** Moodle vence las sesiones tras unas horas de uso; se avisa antes de que ocurra. */
@@ -38,6 +39,7 @@ export interface SessionToolDeps {
   savedAt: () => Date | undefined;
   exists: () => boolean;
   browserInstalled: () => boolean;
+  serviceLogins: ServiceLoginDeps;
   now: () => Date;
 }
 
@@ -48,6 +50,7 @@ const defaultDeps: SessionToolDeps = {
   savedAt: () => SessionStore.savedAt(),
   exists: () => { try { return SessionStore.exists(); } catch { return false; } },
   browserInstalled,
+  serviceLogins: defaultServiceLoginDeps,
   now: () => new Date()
 };
 
@@ -59,6 +62,8 @@ export interface SessionStatusResult {
   loginInProgress: boolean;
   login: TaskState;
   browserInstall: TaskState;
+  /** Correo y Autogestión usan las credenciales guardadas; el Campus se ve en `active`. */
+  services: { correo: ServiceLogin; autogestion: ServiceLogin };
   nextStep: string;
 }
 
@@ -81,6 +86,11 @@ export async function getSessionStatus(deps: SessionToolDeps = defaultDeps): Pro
   else if (age.level === 'aging') nextStep = 'La sesión funciona pero está por vencer: conviene renovarla con start_login.';
   else nextStep = 'Todo listo: la sesión está activa.';
 
+  const services = {
+    correo: await checkServiceLogin('correo', deps.serviceLogins, { verify: true, browser: false }),
+    autogestion: await checkServiceLogin('autogestion', deps.serviceLogins, { verify: true, browser: false })
+  };
+
   return {
     active,
     hasSavedSession,
@@ -89,6 +99,7 @@ export async function getSessionStatus(deps: SessionToolDeps = defaultDeps): Pro
     loginInProgress: loginTask.status === 'running',
     login: loginTask,
     browserInstall: installTask,
+    services,
     nextStep
   };
 }
@@ -105,7 +116,7 @@ export function startLogin(deps: SessionToolDeps = defaultDeps): { started: bool
     result => { loginTask = { ...loginTask, status: result.ok ? 'done' : 'failed', message: sanitizeCampusErrorMessage(result.message) }; },
     error => { loginTask = { ...loginTask, status: 'failed', message: sanitizeCampusErrorMessage(error instanceof Error ? error.message : 'Error desconocido') }; }
   );
-  return { started: true, message: 'Se abrió el navegador en la página del Campus. Iniciá sesión ahí (tenés unos 3 minutos); después consultá session_status.' };
+  return { started: true, message: 'Se abrió el navegador con el Campus, Autogestión y el Webmail en tres pestañas. Iniciá sesión en cada una y elegí tu legajo en Autogestión (tenés unos 5 minutos); después consultá session_status.' };
 }
 
 /** Descarga el navegador que usa el MCP (unos 150 MB). Corre en segundo plano; el avance se ve en session_status. */

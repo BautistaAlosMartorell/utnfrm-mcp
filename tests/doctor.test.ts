@@ -14,6 +14,7 @@ function deps(overrides: Partial<DoctorDeps> = {}): DoctorDeps {
     sessionExists: () => true,
     sessionSavedAt: () => new Date(Date.now() - 2 * 3_600_000),
     validateSession: async () => ({ valid: true, userName: 'Alumno Privado' }),
+    serviceLogins: { credentials: async () => ({ username: '1', password: 'x', email: 'a@b.c' }), verifyMail: async () => undefined, verifyAutogestion: async () => undefined, hasSession: async () => false },
     clients: CLIENTS,
     clientInstalled: binary => binary === 'claude',
     clientRegistered: () => true,
@@ -67,6 +68,18 @@ describe('doctor', () => {
   it('treats Windows storage as protected without probing', async () => {
     const checks = await runDoctor({ machineOnly: true }, deps({ platform: 'win32', probeSecretStorage: async () => { throw new Error('no debe llamarse'); } }));
     expect(byId(checks, 'storage').status).toBe('ok');
+  });
+
+  it('reports mail and Autogestión per service: ok, fail and skipped without credentials', async () => {
+    const ok = await runDoctor({}, deps());
+    expect(byId(ok, 'mail').status).toBe('ok');
+    expect(byId(ok, 'autogestion').status).toBe('ok');
+    const bad = await runDoctor({}, deps({ serviceLogins: { credentials: async () => ({ username: '1', password: 'x' }), verifyMail: async () => { throw new Error('malo'); }, verifyAutogestion: async () => undefined, hasSession: async () => false } }));
+    expect(byId(bad, 'mail')).toMatchObject({ status: 'fail', fix: expect.stringContaining('setup-wizard') });
+    expect(byId(bad, 'autogestion').status).toBe('ok');
+    const none = await runDoctor({}, deps({ serviceLogins: { credentials: async () => null, verifyMail: async () => undefined, verifyAutogestion: async () => undefined, hasSession: async () => false } }));
+    expect(byId(none, 'mail').status).toBe('skip');
+    expect(doctorExitCode(none)).toBe(0);
   });
 
   it('distinguishes no session, expired session, offline mode and legacy sessions', async () => {

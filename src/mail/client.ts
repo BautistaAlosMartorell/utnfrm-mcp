@@ -26,6 +26,9 @@ function summarize(message: FetchMessageObject): MailSummary {
   };
 }
 
+/** Credenciales rechazadas por el servidor de correo (distinto de "no hay conexión"): habilita el respaldo por Webmail. */
+export class MailAuthError extends Error {}
+
 /** Una conexión por operación. Los mensajes son contenido externo no confiable. */
 async function withClient<T>(operation: (client: ImapFlow) => Promise<T>): Promise<T> {
   const credentials = await CredentialStore.get();
@@ -36,9 +39,8 @@ async function withClient<T>(operation: (client: ImapFlow) => Promise<T>): Promi
   try { await client.connect(); }
   catch (error) {
     client.close();
-    throw new Error((error as { authenticationFailed?: boolean }).authenticationFailed
-      ? 'No se pudo iniciar sesión en el correo: usuario o contraseña incorrectos.'
-      : 'No se pudo conectar con el servidor de correo de la facultad.');
+    if ((error as { authenticationFailed?: boolean }).authenticationFailed) throw new MailAuthError('No se pudo iniciar sesión en el correo: usuario o contraseña incorrectos.');
+    throw new Error('No se pudo conectar con el servidor de correo de la facultad.');
   }
   try { return await operation(client); }
   finally { await client.logout().catch(() => client.close()); }
@@ -48,6 +50,11 @@ async function withClient<T>(operation: (client: ImapFlow) => Promise<T>): Promi
 async function inFolder<T>(client: ImapFlow, folder: string, readOnly: boolean, operation: () => Promise<T>): Promise<T> {
   const lock = await client.getMailboxLock(folder, { readOnly }).catch(() => { throw new Error(`No existe la carpeta "${folder}" en el correo (las habituales son INBOX, Sent, Drafts y Trash).`); });
   try { return await operation(); } finally { lock.release(); }
+}
+
+/** Abre y cierra una conexión: confirma que las credenciales guardadas entran al correo. */
+export function verifyMailLogin(): Promise<void> {
+  return withClient(async () => undefined);
 }
 
 export function listMessages(options: { folder: string; limit: number; unseenOnly: boolean }): Promise<MailSummary[]> {

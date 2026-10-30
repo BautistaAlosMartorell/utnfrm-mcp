@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { ROOT_DIR } from './config.js';
 import { campusClient } from './client/campus-client.js';
 import { runReadOnlyCampusChecks } from './cli/read-only-check.js';
-import { server } from './server.js';
+import { packageVersion, server } from './server.js';
 import { loginInteractive } from './session/auth.js';
 import { SessionStore } from './session/session-store.js';
 import { handleWhoami } from './tools/whoami.js';
@@ -16,6 +16,8 @@ import { CredentialStore } from './session/credential-store.js';
 import { registerClient, type ClientId } from './cli/clients.js';
 import { doctorExitCode, formatDoctor, runDoctor } from './cli/doctor.js';
 import { installChromium } from './cli/install-browser.js';
+import { installSystemDeps } from './cli/install-deps.js';
+import { commandHelp, findCommand, helpText, unknownFlags } from './cli/commands.js';
 import { defaultWizardDeps, runWizard, type WizardIO } from './cli/wizard.js';
 import { handleListCourses } from './tools/list-courses.js';
 import { describeSessionAge } from './session/session-status.js';
@@ -76,9 +78,36 @@ function consoleWizardIO(): WizardIO {
 }
 
 async function main(): Promise<void> {
-  const command = process.argv[2] || 'start';
+  const [first, ...rest] = process.argv.slice(2);
+  if (first === '-v' || first === '--version' || first === 'version') {
+    console.log(`utn-mcp-mendoza ${packageVersion()}`);
+    return;
+  }
+  if (first === '-h' || first === '--help' || first === 'help') {
+    const target = rest[0] ? findCommand(rest[0]) : undefined;
+    console.log(target ? commandHelp(target) : helpText(packageVersion()));
+    return;
+  }
+  const command = first || 'start';
+  const spec = findCommand(command);
+  if (!spec) {
+    console.error(`Comando desconocido: ${command}\n`);
+    console.error(helpText(packageVersion()));
+    process.exitCode = 1;
+    return;
+  }
+  if (rest.includes('-h') || rest.includes('--help')) {
+    console.log(commandHelp(spec));
+    return;
+  }
+  const unknown = spec.name === 'start' ? [] : unknownFlags(spec, rest);
+  if (unknown.length > 0) {
+    console.error(`Flag desconocida para ${spec.name}: ${unknown.join(', ')}\n\n${commandHelp(spec)}`);
+    process.exitCode = 1;
+    return;
+  }
 
-  switch (command) {
+  switch (spec.name) {
     case 'start': {
       await server.connect(new StdioServerTransport());
       console.error('UTN MCP Mendoza iniciado sobre transporte stdio.');
@@ -187,8 +216,17 @@ async function main(): Promise<void> {
       return;
     }
     case 'install-browser': {
-      // Las dependencias del sistema piden sudo; solo se instalan si se pide con --with-deps.
-      const status = installChromium({ withDeps: process.argv.includes('--with-deps') });
+      // --with-deps es un atajo: primero las bibliotecas del sistema (con confirmación) y después el navegador.
+      if (rest.includes('--with-deps')) {
+        const depsStatus = installSystemDeps({ yes: rest.includes('--yes') || rest.includes('-y') });
+        if (depsStatus !== 0) { process.exitCode = depsStatus; return; }
+      }
+      const status = installChromium();
+      if (status !== 0) process.exitCode = status;
+      return;
+    }
+    case 'install-deps': {
+      const status = installSystemDeps({ yes: rest.includes('--yes') || rest.includes('-y') });
       if (status !== 0) process.exitCode = status;
       return;
     }
@@ -231,8 +269,7 @@ async function main(): Promise<void> {
       }
       return;
     }
-    case 'setup-wizard':
-    case 'init': {
+    case 'setup-wizard': {
       const yes = process.argv.includes('--yes');
       if (!yes && !process.stdin.isTTY) {
         console.error('El asistente hace preguntas: ejecutalo en una terminal interactiva, o agregá --yes para aceptar las opciones por defecto.');
@@ -275,25 +312,6 @@ async function main(): Promise<void> {
       );
       if (failed) process.exitCode = 1;
       return;
-    }
-    default: {
-      console.log('UTN MCP Mendoza');
-      console.log('  utn-mcp-mendoza             Inicia el servidor MCP sobre stdio');
-      console.log('  utn-mcp-mendoza setup-wizard Asistente guiado: revisa tu equipo, inicia sesión y conecta tu cliente (alias: init)');
-      console.log('  utn-mcp-mendoza doctor      Diagnóstico en una pantalla, con qué hacer en cada punto (--offline no consulta al Campus)');
-      console.log('  utn-mcp-mendoza digest      Resumen de lo que vence y los avisos nuevos (--days=7, --notify, --json, --all-courses, --schedule-help)');
-      console.log('  utn-mcp-mendoza login       Abre el navegador para autenticarte');
-      console.log('  utn-mcp-mendoza approve-assignment <id> Revisa y aprueba una entrega desde una terminal local');
-      console.log('  utn-mcp-mendoza logout      Elimina la sesión local');
-      console.log('  utn-mcp-mendoza forget-credentials Elimina el usuario y la contraseña UTN guardados');
-      console.log('  utn-mcp-mendoza status      Comprueba la sesión sin eliminarla');
-      console.log('  utn-mcp-mendoza whoami      Muestra tu perfil');
-      console.log('  utn-mcp-mendoza setup       Muestra bloques MCP');
-      console.log('  utn-mcp-mendoza setup-codex Registra el MCP en Codex (--print solo imprime el comando)');
-      console.log('  utn-mcp-mendoza setup-claude Registra el MCP en Claude Code (--print solo imprime el comando)');
-      console.log('  utn-mcp-mendoza setup-opencode Registra el MCP en OpenCode (--print solo imprime el comando)');
-      console.log('  utn-mcp-mendoza install-browser Instala Chromium compatible con esta versión (--with-deps agrega dependencias del sistema en Linux, requiere sudo)');
-      console.log('  utn-mcp-mendoza test        Comprueba lecturas sin guardar contenido ni ejecutar escrituras');
     }
   }
 }

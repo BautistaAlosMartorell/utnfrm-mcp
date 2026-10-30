@@ -1,17 +1,20 @@
 import { chromium, type Browser, type Page } from 'playwright';
+import { SYSACAD_HOME_URL, SYSACAD_LOGIN_URL } from '../config.js';
 import { CredentialStore } from '../session/credential-store.js';
+import { SessionStore } from '../session/session-store.js';
 import { CONSULTAS, type ConsultaName } from './consultas.js';
 
-const LOGIN_URL = 'https://sysacad.frm.utn.edu.ar/login.php';
 const NAV_TIMEOUT_MS = 30_000;
 const SETTLE_TIMEOUT_MS = 90_000;
 const IDLE_CLOSE_MS = 5 * 60_000;
 
-class SessionExpiredError extends Error {}
+class SessionExpiredError extends Error {
+  constructor() { super('La sesión de Autogestión venció. Ejecutá utn-mcp-mendoza login (o guardá credenciales con utn-mcp-mendoza setup-wizard para renovarla sola).'); }
+}
 
 /**
  * Cliente de Autogestion (Sysacad). El sitio es ASP clasico con JavaScript: se maneja con un Chromium sin
- * pantalla y las credenciales UTN guardadas. Solo hace las consultas de solo lectura de `CONSULTAS`;
+ * pantalla. Entra con las credenciales UTN guardadas o, si no hay, con las cookies de `utn-mcp-mendoza login`. Solo hace las consultas de solo lectura de `CONSULTAS`;
  * ninguna inscripcion ni formulario de escritura. Una sola pagina compartida, por eso se serializa.
  */
 export class SysacadClient {
@@ -19,6 +22,8 @@ export class SysacadClient {
   private page: Page | null = null;
   private homeUrl: string | null = null;
   private legajo: string | undefined;
+  /** Sesión armada con las cookies de `login` (no con credenciales): si venció, no hay con qué renovarla. */
+  private cookieMode = false;
   private queue: Promise<unknown> = Promise.resolve();
   private idleTimer: NodeJS.Timeout | undefined;
 
@@ -43,12 +48,18 @@ export class SysacadClient {
     return this.run(legajo, (page, home) => this.settle(page, new URL('transacciones/manpet.frc?t=502&ingreso=0', home).href));
   }
 
+  /** Inicia sesión (o reutiliza la abierta) sin consultar nada. */
+  async verifyLogin(legajo?: string): Promise<void> {
+    await this.run(legajo, async () => undefined);
+  }
+
   async close(): Promise<void> {
     clearTimeout(this.idleTimer);
     const browser = this.browser;
     this.browser = null;
     this.page = null;
     this.homeUrl = null;
+    this.cookieMode = false;
     await browser?.close().catch(() => null);
   }
 
@@ -65,8 +76,10 @@ export class SysacadClient {
             if (await this.isLoginPage(page)) throw new SessionExpiredError();
             return await action(page, this.homeUrl!);
           } catch (error) {
-            if (!(error instanceof SessionExpiredError) || attempt > 0) throw error;
+            if (!(error instanceof SessionExpiredError)) throw error;
+            const retry = attempt === 0 && !this.cookieMode;
             await this.close();
+            if (!retry) throw error;
           }
         }
       } finally {
@@ -82,14 +95,14 @@ export class SysacadClient {
   private async session(legajo?: string): Promise<Page> {
     if (this.page && !this.page.isClosed()) return this.page;
     const credentials = await CredentialStore.get();
-    if (!credentials) throw new Error('Faltan las credenciales UTN. Ejecutá utn-mcp-mendoza setup-wizard para guardarlas.');
+    if (!credentials) return this.sessionFromCookies();
 
     await this.close();
     this.browser = await chromium.launch({ headless: true });
     try {
       const page = await (await this.browser.newContext({ acceptDownloads: false })).newPage();
       page.setDefaultTimeout(NAV_TIMEOUT_MS);
-      await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' });
+      await page.goto(SYSACAD_LOGIN_URL, { waitUntil: 'domcontentloaded' });
       await page.fill('[name="username"]', credentials.username);
       await page.fill('[name="password"]', credentials.password);
       await page.evaluate(() => (document.querySelector('[type="submit"]') as HTMLElement | null)?.click());
@@ -108,6 +121,26 @@ export class SysacadClient {
       await page.waitForSelector('a[href*="iRv"]');
       this.homeUrl = page.url();
       this.legajo = legajo;
+      this.page = page;
+      return page;
+    } catch (error) {
+      await this.close();
+      throw error;
+    }
+  }
+
+  /** Sin credenciales: se reusan las cookies guardadas por `login`. El legajo ya quedó elegido en esa sesión. */
+  private async sessionFromCookies(): Promise<Page> {
+    if (!SessionStore.exists()) throw new Error('Faltan las credenciales UTN. Ejecutá utn-mcp-mendoza setup-wizard para guardarlas, o utn-mcp-mendoza login para iniciar sesión sin guardarlas.');
+    await this.close();
+    this.browser = await chromium.launch({ headless: true });
+    try {
+      const context = await this.browser.newContext({ acceptDownloads: false, storageState: await SessionStore.getPlaywrightStorageState() });
+      const page = await context.newPage();
+      page.setDefaultTimeout(NAV_TIMEOUT_MS);
+      this.homeUrl = SYSACAD_HOME_URL;
+      this.legajo = undefined;
+      this.cookieMode = true;
       this.page = page;
       return page;
     } catch (error) {

@@ -6,10 +6,11 @@ import { SessionStore } from '../session/session-store.js';
 import { CLIENTS, isInstalled, isRegistered, type ClientSpec } from './clients.js';
 import { describeCliError } from '../client/friendly-errors.js';
 import { describeSessionAge } from '../session/session-status.js';
+import { checkServiceLogin, defaultServiceLoginDeps, type ServiceLoginDeps } from '../session/service-logins.js';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skip';
 export type DoctorCheck = {
-  id: 'node' | 'browser' | 'storage' | 'display' | 'session' | `client-${string}`;
+  id: 'node' | 'browser' | 'storage' | 'display' | 'session' | 'mail' | 'autogestion' | `client-${string}`;
   title: string;
   status: CheckStatus;
   detail: string;
@@ -28,6 +29,7 @@ export interface DoctorDeps {
   sessionExists: () => boolean;
   sessionSavedAt: () => Date | undefined;
   validateSession: () => Promise<{ valid: boolean; userName?: string; error?: string }>;
+  serviceLogins: ServiceLoginDeps;
   clients: ClientSpec[];
   clientInstalled: (binary: string) => boolean;
   clientRegistered: (binary: string) => boolean | undefined;
@@ -49,6 +51,7 @@ export const defaultDoctorDeps: DoctorDeps = {
   sessionExists: () => SessionStore.exists(),
   sessionSavedAt: () => SessionStore.savedAt(),
   validateSession: () => campusClient.validateSession(),
+  serviceLogins: defaultServiceLoginDeps,
   clients: CLIENTS,
   clientInstalled: binary => isInstalled(binary),
   clientRegistered: binary => isRegistered(binary)
@@ -100,7 +103,7 @@ export async function runDoctor(options: DoctorOptions = {}, deps: DoctorDeps = 
   } else if (deps.platform === 'linux' && !deps.hasCommand('secret-tool')) {
     checks.push({
       id: 'storage', title: 'Almacén seguro de sesión', status: 'fail', detail: 'falta secret-tool (paquete libsecret-tools)',
-      fix: 'En Ubuntu/Debian ejecutá: sudo apt-get install -y libsecret-tools gnome-keyring. Después, usá una sesión de escritorio con el almacén desbloqueado.'
+      fix: 'Ubuntu/Debian: sudo apt-get install -y libsecret-tools gnome-keyring. Fedora: sudo dnf install -y libsecret gnome-keyring. Arch: sudo pacman -S --needed libsecret gnome-keyring. Después, usá una sesión de escritorio con el almacén desbloqueado.'
     });
   } else {
     try {
@@ -153,6 +156,14 @@ export async function runDoctor(options: DoctorOptions = {}, deps: DoctorDeps = 
           }
         : { id: 'session', title: 'Sesión del Campus', status: 'fail', detail: 'venció o no es válida', fix: 'Ejecutá: utn-mcp-mendoza login' });
     }
+  }
+
+  for (const [id, service, title] of [['mail', 'correo', 'Correo institucional'], ['autogestion', 'autogestion', 'Autogestión (Sysacad)']] as const) {
+    const result = await checkServiceLogin(service, deps.serviceLogins, { verify: !options.offline, browser: true });
+    checks.push({
+      id, title, status: result.status, detail: result.detail,
+      fix: result.status === 'fail' ? 'Revisá usuario, contraseña y correo con: utn-mcp-mendoza setup-wizard' : undefined
+    });
   }
 
   let anyInstalled = false;

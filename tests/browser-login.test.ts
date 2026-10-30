@@ -75,6 +75,54 @@ describe.skipIf(!hasBrowser)('runBrowserLogin (Moodle simulado, sin teclado ni t
     expect(progress.join(' ')).toMatch(/Detecté tu inicio de sesión/);
   }, 40_000);
 
+  it('fills the form by itself when credentials are given', async () => {
+    const site = fakeMoodle();
+    const save = vi.fn(async () => undefined);
+    const result = await runBrowserLogin({
+      headless: true, pollMs: 100, settleMs: 100, timeoutMs: 20_000, save,
+      credentials: { username: 'alumno', password: 'no-es-una-clave-real' },
+      prepare: site.prepare
+    });
+    expect(result).toMatchObject({ ok: true, reason: 'saved' });
+    expect(save).toHaveBeenCalledTimes(1);
+  }, 40_000);
+
+  it('with sysacad waits for both sites and saves one session with both cookies', async () => {
+    const site = fakeMoodle();
+    const save = vi.fn(async () => undefined);
+    const result = await runBrowserLogin({
+      headless: true, pollMs: 100, settleMs: 100, timeoutMs: 20_000, save, sysacad: true,
+      sysacadLoginUrl: 'https://sysacad.frm.utn.edu.ar/login.php',
+      prepare: async context => {
+        await site.prepare(context);
+        await context.route('https://sysacad.frm.utn.edu.ar/**', route => route.fulfill({ status: 200, contentType: 'text/html', headers: { 'set-cookie': 'PHPSESSID=s; Path=/' }, body: '<html><body><script>location.replace("http://autogestion5.frm.utn.edu.ar/academico3/")</script></body></html>' }));
+        await context.route('http://autogestion5.frm.utn.edu.ar/**', route => route.fulfill({ status: 200, contentType: 'text/html', headers: { 'set-cookie': 'ASPSESSIONID=a; Path=/' }, body: '<html><body><a href="javascript:iRv(1)">Menú</a></body></html>' }));
+        context.on('page', page => { if (page.url().startsWith(ORIGIN) || page.url() === 'about:blank') void typeCredentialsAndSubmit(page).catch(() => undefined); });
+      }
+    });
+    expect(result).toMatchObject({ ok: true, reason: 'saved' });
+    expect(save).toHaveBeenCalledTimes(1);
+    const state = (save.mock.calls[0] as unknown as [{ cookies: Array<{ name: string }> }])[0];
+    expect(state.cookies.map(cookie => cookie.name)).toEqual(expect.arrayContaining(['MoodleSession', 'PHPSESSID', 'ASPSESSIONID']));
+  }, 40_000);
+
+  it('with webmail also waits for the Roundcube tab and saves its cookie', async () => {
+    const site = fakeMoodle();
+    const save = vi.fn(async () => undefined);
+    const result = await runBrowserLogin({
+      headless: true, pollMs: 100, settleMs: 100, timeoutMs: 20_000, save, webmail: true,
+      webmailUrl: 'https://alumnos.frm.utn.edu.ar/webmail2/',
+      prepare: async context => {
+        await site.prepare(context);
+        await context.route('https://alumnos.frm.utn.edu.ar/**', route => route.fulfill({ status: 200, contentType: 'text/html', headers: { 'set-cookie': 'roundcube_sessid=r; Path=/' }, body: '<html><body><script>window.rcmail = { env: { task: "mail" } }</script></body></html>' }));
+        context.on('page', page => { if (page.url().startsWith(ORIGIN) || page.url() === 'about:blank') void typeCredentialsAndSubmit(page).catch(() => undefined); });
+      }
+    });
+    expect(result).toMatchObject({ ok: true, reason: 'saved' });
+    const state = (save.mock.calls[0] as unknown as [{ cookies: Array<{ name: string }> }])[0];
+    expect(state.cookies.map(cookie => cookie.name)).toEqual(expect.arrayContaining(['MoodleSession', 'roundcube_sessid']));
+  }, 40_000);
+
   it('shows on-screen instructions in the login page so nobody has to guess', async () => {
     const site = fakeMoodle();
     let banner = '';

@@ -11,7 +11,7 @@ describe('friendly CLI errors', () => {
   });
 
   it('explains missing secret storage and display', () => {
-    expect(describeCliError(new Error('spawn secret-tool ENOENT'))).toMatch(/libsecret-tools/);
+    expect(describeCliError(new Error('spawn secret-tool ENOENT'))).toMatch(/libsecret-tools.*libsecret gnome-keyring/);
     expect(describeCliError(new Error('Missing X server or $DISPLAY'))).toMatch(/entorno gráfico/);
   });
 

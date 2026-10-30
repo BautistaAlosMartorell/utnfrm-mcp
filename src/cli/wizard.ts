@@ -91,7 +91,7 @@ export async function runWizard(options: WizardOptions, io: WizardIO, deps: Wiza
       const status = deps.installBrowser();
       checks = await deps.diagnose({ machineOnly: true });
       if (status !== 0 || find(checks, 'browser')?.status === 'fail') {
-        return stop('no se pudo instalar el navegador. En Linux probá: utn-mcp-mendoza install-browser --with-deps (pide sudo).');
+        return stop('no se pudo instalar el navegador. Probá: utn-mcp-mendoza install-browser. Si luego Chromium no abre en Linux, faltan bibliotecas del sistema: utn-mcp-mendoza install-deps.');
       }
       io.say('✔ Navegador instalado.');
     } else {

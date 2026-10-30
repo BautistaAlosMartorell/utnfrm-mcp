@@ -5,7 +5,7 @@ const { mail, sysacad } = vi.hoisted(() => ({
   sysacad: { consultar: vi.fn(), inscripcionHtml: vi.fn() }
 }));
 
-vi.mock('../src/mail/client.js', () => mail);
+vi.mock('../src/mail/backend.js', () => mail);
 vi.mock('../src/sysacad/client.js', () => ({ sysacadClient: sysacad }));
 
 const mailTools = await import('../src/tools/mail.js');

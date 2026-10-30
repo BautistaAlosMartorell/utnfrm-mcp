@@ -89,7 +89,7 @@ import {
 } from './types/index.js';
 
 /** La versión que informa el servidor sale del package.json, para que no se desfase del paquete. */
-function packageVersion(): string {
+export function packageVersion(): string {
   try {
     const parsed = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'package.json'), 'utf8')) as { version?: unknown };
     return typeof parsed.version === 'string' ? parsed.version : '0.0.0';
@@ -690,7 +690,7 @@ registerMcpTool(
 
 registerMcpTool(
   'session_status',
-  'Estado de la conexión con el Campus: si la sesión está activa, hace cuánto se guardó (las sesiones suelen vencer a las ~8 h), si el navegador necesario está instalado, si hay un inicio de sesión o una instalación en curso, y el próximo paso en lenguaje claro. Úsalo primero si una consulta falla por sesión vencida.',
+  'Estado de la conexión con el Campus: si la sesión está activa, hace cuánto se guardó (las sesiones suelen vencer a las ~8 h), si el navegador necesario está instalado, si hay un inicio de sesión o una instalación en curso, si el correo funciona (por IMAP con credenciales guardadas; por Webmail solo se verifica con `utn-mcp-mendoza doctor`, igual que Autogestión), y el próximo paso en lenguaje claro. Úsalo primero si una consulta falla por sesión vencida.',
   SessionStatusInputSchema.shape,
   async () => {
     try {
@@ -703,7 +703,7 @@ registerMcpTool(
 
 registerMcpTool(
   'start_login',
-  'Abre en la computadora de la persona una ventana del navegador en la página de acceso del Campus para iniciar o renovar la sesión, y vuelve enseguida. La persona escribe su usuario y contraseña únicamente en esa ventana (el MCP nunca los ve). Después hay que consultar session_status. No hace nada en el Campus.',
+  'Abre en la computadora de la persona una ventana del navegador con tres pestañas, el acceso del Campus, el de Autogestión y el del Webmail, para iniciar o renovar las sesiones, y vuelve enseguida. La persona escribe su usuario y contraseña únicamente en esa ventana y elige su legajo en Autogestión (el MCP nunca los ve). Después hay que consultar session_status. No hace nada en el Campus.',
   StartLoginInputSchema.shape,
   async () => {
     try {

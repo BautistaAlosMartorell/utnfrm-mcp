@@ -2,15 +2,11 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-/**
- * Instala el Chromium que corresponde a esta versión del MCP. Las dependencias del sistema (Linux) piden
- * sudo, así que solo se instalan si se pide con `withDeps`. Devuelve el código de salida.
- */
-export function installChromium(options: { withDeps?: boolean } = {}): number {
+/** Descarga el Chromium que corresponde a esta versión del MCP (sin permisos de administrador). Devuelve el código de salida. */
+export function installChromium(): number {
   const playwrightEntry = fileURLToPath(import.meta.resolve('playwright'));
   const playwrightCli = path.join(path.dirname(playwrightEntry), 'cli.js');
-  const args = options.withDeps ? ['install', '--with-deps', 'chromium'] : ['install', 'chromium'];
-  const result = spawnSync(process.execPath, [playwrightCli, ...args], { stdio: 'inherit' });
+  const result = spawnSync(process.execPath, [playwrightCli, 'install', 'chromium'], { stdio: 'inherit' });
   if (result.error) throw result.error;
   return result.status ?? 1;
 }

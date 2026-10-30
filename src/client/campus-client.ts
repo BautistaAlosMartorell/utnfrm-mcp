@@ -2,6 +2,7 @@ import * as cheerio from 'cheerio';
 import { request, APIRequestContext, APIResponse, chromium, Browser, BrowserContext } from 'playwright';
 import { CAMPUS_ORIGIN, DEFAULT_TIMEOUT_MS, PATHS } from '../config.js';
 import { SessionStore } from '../session/session-store.js';
+import { autoLogin } from '../session/auth.js';
 import { isCampusLoginUrl, resolveCampusUrl } from './campus-url.js';
 import { sanitizeCampusErrorMessage } from './error-sanitizer.js';
 import { campusRequestPolicy, isReadOnlyCampusPost } from './campus-request-policy.js';
@@ -12,6 +13,7 @@ import { filenameFromContentDisposition, pickResourceFile } from './campus-links
 import { readCachedDownload, writeCachedDownload } from './file-cache.js';
 
 const MAX_REDIRECTS = 5;
+const SESSION_EXPIRED_MESSAGE = 'La sesión del Campus Virtual expiró. Volvé a iniciar sesión con utn-mcp-mendoza login.';
 
 /** Enlace externo (fuera del Campus) de una página de módulo URL: el cuerpo de la actividad o su iframe. */
 export function extractExternalLink(html: string): string | undefined {
@@ -71,11 +73,22 @@ export class CampusClient {
     let target = resolveCampusUrl(pathOrUrl);
     let currentMethod = method;
     let currentForm = form;
+    let renewed = false;
 
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
       if (isCampusLoginUrl(target)) {
         campusRequestPolicy.block('authentication');
-        throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con utn-mcp-mendoza login.');
+        if (!renewed && await autoLogin()) {
+          // Redirigió al acceso: se rehace la solicitud original con la sesión nueva.
+          renewed = true;
+          await this.adoptRenewedSession();
+          target = resolveCampusUrl(pathOrUrl);
+          currentMethod = method;
+          currentForm = form;
+          redirects = -1;
+          continue;
+        }
+        throw new Error(SESSION_EXPIRED_MESSAGE);
       }
       let result: CampusResponse;
       const signal = getCampusOperationSignal();
@@ -103,7 +116,7 @@ export class CampusClient {
             const finalUrl = resolveCampusUrl(response.url());
             if (isCampusLoginUrl(finalUrl)) {
               campusRequestPolicy.block('authentication');
-              throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con utn-mcp-mendoza login.');
+              throw new Error(SESSION_EXPIRED_MESSAGE);
             }
             let inspectedText: string | undefined;
             if ((response.headers()['content-type'] || '').includes('text/html')) {
@@ -130,6 +143,13 @@ export class CampusClient {
         }, signal);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Error de red';
+        // Una sola renovación automática por solicitud; si falla, queda el bloqueo y el login manual.
+        if (message === SESSION_EXPIRED_MESSAGE && !renewed && !signal?.aborted && await autoLogin()) {
+          renewed = true;
+          await this.adoptRenewedSession();
+          redirects -= 1;
+          continue;
+        }
         if (signal?.aborted) throw new Error('La solicitud al Campus fue cancelada por el cliente MCP.');
         throw new Error(sanitizeCampusErrorMessage(message) || 'No se pudo completar la solicitud al Campus.');
       }
@@ -160,7 +180,7 @@ export class CampusClient {
     if (isCampusLoginUrl(finalUrl) || (responseText?.includes('id="login"') &&
       responseText.includes('name="password"') && !responseText.includes('class="userbutton"'))) {
       campusRequestPolicy.block('authentication');
-      throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con utn-mcp-mendoza login.');
+      throw new Error(SESSION_EXPIRED_MESSAGE);
     }
     if (responseText && /cf-chl-|captcha-container|g-recaptcha|security challenge|temporarily blocked|unusual traffic/i.test(responseText.slice(0, 12000))) {
       campusRequestPolicy.block('security-challenge');
@@ -348,7 +368,7 @@ export class CampusClient {
         const location = response.headers().location;
         if (!location) throw new Error('El Campus no informó a dónde apunta el enlace.');
         const resolved = new URL(location, target);
-        if (isCampusLoginUrl(resolved.href)) throw new Error('La sesión del Campus Virtual expiró. Volvé a iniciar sesión con utn-mcp-mendoza login.');
+        if (isCampusLoginUrl(resolved.href)) throw new Error(SESSION_EXPIRED_MESSAGE);
         if (resolved.origin !== CAMPUS_ORIGIN) return resolved.href;
       } else if (status < 200 || status >= 300) {
         throw new Error(`El Campus respondió con HTTP ${status} al consultar el enlace.`);
