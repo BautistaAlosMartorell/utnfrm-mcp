@@ -1,6 +1,7 @@
 import { installChromium } from '../cli/install-browser.js';
 import { browserInstalled } from './browser.js';
 import { CredentialStore } from './credential-store.js';
+import { SessionStore } from './session-store.js';
 import { runBrowserLogin, type BrowserLoginResult } from './browser-login.js';
 
 /** Dos sitios para entrar a mano: más tiempo que con el Campus solo. */
@@ -45,6 +46,26 @@ export async function loginInBackground(timeoutMs = LOGIN_TIMEOUT_MS): Promise<B
   return runBrowserLogin({ sysacad: true, webmail: true, timeoutMs });
 }
 
+type StorageState = Awaited<ReturnType<import('playwright').BrowserContext['storageState']>>;
+
+/** La renovación headless solo ve el Campus: se conservan las cookies ya guardadas de Autogestión y Webmail. */
+export function mergeStorageState(previous: StorageState | string | undefined, fresh: StorageState): StorageState {
+  if (!previous || typeof previous === 'string') return fresh;
+  const key = (cookie: { name: string; domain: string; path: string }) => `${cookie.domain}|${cookie.path}|${cookie.name}`;
+  const renewed = new Set(fresh.cookies.map(key));
+  const origins = new Set(fresh.origins.map(entry => entry.origin));
+  return {
+    cookies: [...previous.cookies.filter(cookie => !renewed.has(key(cookie))), ...fresh.cookies],
+    origins: [...previous.origins.filter(entry => !origins.has(entry.origin)), ...fresh.origins]
+  };
+}
+
+async function saveMerged(fresh: StorageState): Promise<void> {
+  const previous = SessionStore.exists() ? await SessionStore.getPlaywrightStorageState().catch(() => undefined) : undefined;
+  await SessionStore.save(mergeStorageState(previous, fresh));
+  SessionStore.protectSessionFile();
+}
+
 let autoLoginInFlight: Promise<boolean> | undefined;
 
 /**
@@ -56,7 +77,7 @@ export function autoLogin(timeoutMs = 60_000): Promise<boolean> {
     try {
       const credentials = await CredentialStore.get();
       if (!credentials || !browserInstalled()) return false;
-      return (await runBrowserLogin({ headless: true, credentials, timeoutMs })).ok;
+      return (await runBrowserLogin({ headless: true, credentials, timeoutMs, save: saveMerged })).ok;
     } catch {
       return false;
     }
