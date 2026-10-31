@@ -45,7 +45,20 @@ export interface AssignmentDetail {
   gradingStatus?: string;
   lastModified?: string;
   attachments: Attachment[];
+  submission?: AssignmentSubmission;
+  feedback?: AssignmentFeedback;
   url: string;
+}
+
+export interface AssignmentSubmission {
+  files: Attachment[];
+}
+
+export interface AssignmentFeedback {
+  grade?: string;
+  gradedAt?: string;
+  comment?: string;
+  files: Attachment[];
 }
 
 // Recurso / Material
