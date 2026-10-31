@@ -247,7 +247,7 @@ registerMcpTool(
 
 registerMcpTool(
   'get_assignment',
-  'Obtiene el detalle completo y la consigna explicada de una tarea, junto a su estado de entrega, fechas y archivos adjuntos del docente.',
+  'Obtiene el detalle completo y la consigna explicada de una tarea, junto a su estado de entrega, fechas y archivos adjuntos del docente. Incluye los archivos entregados por el alumno, la nota, la fecha de calificación, el comentario del docente y los archivos subidos en la corrección.',
   GetAssignmentInputSchema.shape,
   async ({ assignment_id }) => {
     try {
