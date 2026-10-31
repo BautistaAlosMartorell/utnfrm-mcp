@@ -66,6 +66,36 @@ describe('UTN Mendoza HTML Parsers — Suite Completa', () => {
     expect(detail.timeRemaining).toContain('4 días restantes');
     expect(detail.attachments).toHaveLength(1);
     expect(detail.attachments[0].name).toBe('consigna_tp1.pdf');
+    expect(detail.submission).toBeUndefined();
+    expect(detail.feedback).toBeUndefined();
+  });
+
+  it('debe parsear entrega, nota y corrección de una tarea calificada', () => {
+    const html = fs.readFileSync(path.join(fixturesDir, 'assign-view-graded.html'), 'utf8');
+    const detail = parseAssignmentDetail(html, 'https://campusvirtual.frm.utn.edu.ar/mod/assign/view.php?id=49227');
+
+    expect(detail.submissionStatus).toBe('Enviado para calificar');
+    expect(detail.gradingStatus).toBe('Calificado');
+    expect(detail.submission?.files).toHaveLength(1);
+    expect(detail.submission?.files[0].name).toBe('entrega_PI2_U1.pdf');
+    expect(detail.submission?.files[0].url).toContain('/pluginfile.php/80771/assignsubmission_file/');
+    expect(detail.feedback?.grade).toBe('10,0 / 10,0');
+    expect(detail.feedback?.gradedAt).toContain('martes, 6 de octubre de 2026, 22:10');
+    expect(detail.feedback?.comment).toContain('mejores revisiones PI1 → PI2');
+    expect(detail.feedback?.comment).toContain('agrega reglas faltantes para normalización y ruido');
+    expect(detail.feedback?.files).toEqual([]);
+  });
+
+  it('debe parsear el archivo que el docente sube en la corrección', () => {
+    const html = fs.readFileSync(path.join(fixturesDir, 'assign-view-feedback-file.html'), 'utf8');
+    const detail = parseAssignmentDetail(html, 'https://campusvirtual.frm.utn.edu.ar/mod/assign/view.php?id=50001');
+
+    expect(detail.submission?.files.map(file => file.name)).toEqual(['entrega.pdf']);
+    expect(detail.feedback?.grade).toBe('7,5 / 10,0');
+    expect(detail.feedback?.comment).toContain('Revisar la sección de reglas');
+    expect(detail.feedback?.files).toHaveLength(1);
+    expect(detail.feedback?.files[0].name).toBe('correccion.pdf');
+    expect(detail.feedback?.files[0].url).toContain('/assignfeedback_file/');
   });
 
   it('debe parsear los recursos y agruparlos por sección', () => {
