@@ -102,6 +102,55 @@ export function parseAssignmentsIndex(html: string): AssignmentSummary[] {
   return assignments;
 }
 
+type Selection = ReturnType<cheerio.CheerioAPI>;
+
+/** Clona un fragmento del Campus sin scripts, formularios, atributos inline ni enlaces fuera de http(s). */
+function sanitizeFragment($: cheerio.CheerioAPI, $source: Selection): Selection {
+  const $fragment = $source.clone();
+  $fragment.find('script,style,iframe,object,embed,form,button,input,textarea,select').remove();
+  $fragment.find('*').addBack().each((_, element) => {
+    if (!('attribs' in element)) return;
+    const node = $(element);
+    for (const attribute of Object.keys(element.attribs || {})) {
+      if (/^on/i.test(attribute) || ['srcdoc', 'style'].includes(attribute.toLowerCase())) {
+        node.removeAttr(attribute);
+        continue;
+      }
+      if (['href', 'src', 'data'].includes(attribute.toLowerCase())) {
+        const value = node.attr(attribute) || '';
+        try {
+          const target = new URL(value, CAMPUS_ORIGIN);
+          if (!['https:', 'http:'].includes(target.protocol) || target.username || target.password) node.removeAttr(attribute);
+        } catch {
+          node.removeAttr(attribute);
+        }
+      }
+    }
+  });
+  return $fragment;
+}
+
+/** Convierte enlaces pluginfile en adjuntos. Descarta los que no se pueden resolver dentro del Campus. */
+function toAttachments($: cheerio.CheerioAPI, $links: Selection): Attachment[] {
+  const attachments: Attachment[] = [];
+  $links.each((_, el) => {
+    const $a = $(el);
+    const href = $a.attr('href');
+    const fileName = $a.text().trim();
+    if (href && fileName) {
+      try {
+        attachments.push({
+          name: fileName,
+          url: resolveCampusUrl(href, CAMPUS_ORIGIN)
+        });
+      } catch {
+        // Ignore malformed or out-of-scope file references in untrusted course HTML.
+      }
+    }
+  });
+  return attachments;
+}
+
 /**
  * Parsea el detalle completo de una tarea desde /mod/assign/view.php?id=...
  */
@@ -140,47 +189,12 @@ export function parseAssignmentDetail(html: string, pageUrl: string): Assignment
     .trim();
 
   // Consigna / Descripción
-  const $intro = $('#intro, .activity-description, .box.generalbox#intro, div[role="main"] .box.py-3').first().clone();
-  $intro.find('script,style,iframe,object,embed,form,button,input,textarea,select').remove();
-  $intro.find('*').addBack().each((_, element) => {
-    if (!('attribs' in element)) return;
-    const node = $(element);
-    for (const attribute of Object.keys(element.attribs || {})) {
-      if (/^on/i.test(attribute) || ['srcdoc', 'style'].includes(attribute.toLowerCase())) {
-        node.removeAttr(attribute);
-        continue;
-      }
-      if (['href', 'src', 'data'].includes(attribute.toLowerCase())) {
-        const value = node.attr(attribute) || '';
-        try {
-          const target = new URL(value, CAMPUS_ORIGIN);
-          if (!['https:', 'http:'].includes(target.protocol) || target.username || target.password) node.removeAttr(attribute);
-        } catch {
-          node.removeAttr(attribute);
-        }
-      }
-    }
-  });
+  const $intro = sanitizeFragment($, $('#intro, .activity-description, .box.generalbox#intro, div[role="main"] .box.py-3').first());
   const descriptionHtml = $intro.length > 0 ? $intro.html() || '' : '';
   const descriptionMarkdown = descriptionHtml ? turndownService.turndown(descriptionHtml).trim() : 'Sin consigna de texto disponible.';
 
   // Archivos adjuntos a la consigna
-  const attachments: Attachment[] = [];
-  $intro.find('a[href*="pluginfile.php"]').each((_, el) => {
-    const $a = $(el);
-    const href = $a.attr('href');
-    const fileName = $a.text().trim();
-    if (href && fileName) {
-      try {
-        attachments.push({
-          name: fileName,
-          url: resolveCampusUrl(href, CAMPUS_ORIGIN)
-        });
-      } catch {
-        // Ignore malformed or out-of-scope file references in untrusted course HTML.
-      }
-    }
-  });
+  const attachments = toAttachments($, $intro.find('a[href*="pluginfile.php"]'));
 
   // Estado de entrega y fechas (tabla de sumario .submissionstatustable o .generaltable)
   let dueDate: string | undefined;
@@ -207,6 +221,25 @@ export function parseAssignmentDetail(html: string, pageUrl: string): Assignment
     }
   });
 
+  // Entrega del alumno y corrección del docente (tablas de Moodle; la nota no está en la tabla de estado)
+  const submissionFiles = toAttachments($, $('.submissionstatustable a[href*="/assignsubmission_file/"]'));
+
+  let grade: string | undefined;
+  let gradedAt: string | undefined;
+  $('.feedbacktable tr').each((_, row) => {
+    const $row = $(row);
+    const label = $row.find('th').first().text().trim().toLowerCase();
+    const value = $row.find('td').first().text().replace(/\s+/g, ' ').trim();
+    if (label === 'calificación' || label === 'grade') grade = value;
+    else if (/^calificado (sobre|en)$|^graded on$/.test(label)) gradedAt = value;
+  });
+
+  const $comment = sanitizeFragment($, $('.feedbacktable [class*="full_assignfeedback_comments"]').first());
+  $comment.find('.expandsummaryicon').remove();
+  const commentHtml = $comment.html() || '';
+  const commentMarkdown = commentHtml ? turndownService.turndown(commentHtml).trim() || undefined : undefined;
+  const feedbackFiles = toAttachments($, $('.feedbacktable a[href*="/assignfeedback_file/"]'));
+
   return {
     id,
     name: name || 'Tarea sin título',
@@ -220,6 +253,10 @@ export function parseAssignmentDetail(html: string, pageUrl: string): Assignment
     gradingStatus,
     lastModified,
     attachments,
+    submission: submissionFiles.length > 0 ? { files: submissionFiles } : undefined,
+    feedback: grade || gradedAt || commentMarkdown || feedbackFiles.length > 0
+      ? { grade, gradedAt, comment: commentMarkdown, files: feedbackFiles }
+      : undefined,
     url: pageUrl
   };
 }
